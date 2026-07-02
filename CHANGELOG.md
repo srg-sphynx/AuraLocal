@@ -13,6 +13,7 @@ All notable changes to Aura Local are documented here. Version numbers follow th
 - **Enter to send** — the composer is now backed by an AppKit text view: **Return sends** the message and **⇧Return / ⌥Return inserts a new line**. Previously the `TextEditor`'s `.onSubmit` never fired, so sending required clicking the button.
 - **Appearance changes no longer scroll the page to the top.** Theme edits (transparency, accent, high contrast, density) previously rebuilt the entire view tree via `.id()`, resetting Settings to the top on every tweak. Re-theming now flows through observation and re-renders in place, preserving scroll and other transient state.
 - **High contrast now makes a visible difference** — stronger panel borders, outlines, and field/card fills in both light and dark high-contrast modes.
+- **Sidebar Documentation / GitHub links now open.** They were decorative (no action); they now open the user guide and repository in your browser.
 
 ## [3.1.0] — 2026-07-02
 

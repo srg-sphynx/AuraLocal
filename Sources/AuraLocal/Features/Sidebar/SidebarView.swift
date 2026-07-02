@@ -103,8 +103,10 @@ struct SidebarView: View {
 
     private var footer: some View {
         VStack(spacing: 2) {
-            FooterLink(title: "Documentation", symbol: "book")
-            FooterLink(title: "GitHub", symbol: "chevron.left.forwardslash.chevron.right")
+            FooterLink(title: "Documentation", symbol: "book",
+                       url: URL(string: "https://github.com/srg-sphynx/AuraLocal/blob/main/docs/USER_GUIDE.md")!)
+            FooterLink(title: "GitHub", symbol: "chevron.left.forwardslash.chevron.right",
+                       url: URL(string: "https://github.com/srg-sphynx/AuraLocal")!)
         }
     }
 }
@@ -147,17 +149,23 @@ private struct NavRow: View {
 private struct FooterLink: View {
     let title: String
     let symbol: String
+    let url: URL
     @State private var hover = false
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: symbol).font(.system(size: 11)).frame(width: 16)
-            Text(title).font(Theme.Font.bodySm())
-            Spacer()
+        Link(destination: url) {
+            HStack(spacing: 8) {
+                Image(systemName: symbol).font(.system(size: 11)).frame(width: 16)
+                Text(title).font(Theme.Font.bodySm())
+                Spacer()
+                Image(systemName: "arrow.up.forward").font(.system(size: 9))
+                    .opacity(hover ? 0.8 : 0)
+            }
+            .foregroundStyle(hover ? Theme.Palette.onSurface : Theme.Palette.outline)
+            .padding(.horizontal, 8).padding(.vertical, 5)
+            .background(RoundedRectangle(cornerRadius: 5).fill(hover ? Theme.Palette.hoverFill : .clear))
+            .contentShape(Rectangle())
         }
-        .foregroundStyle(hover ? Theme.Palette.onSurface : Theme.Palette.outline)
-        .padding(.horizontal, 8).padding(.vertical, 5)
-        .background(RoundedRectangle(cornerRadius: 5).fill(hover ? Theme.Palette.hoverFill : .clear))
-        .contentShape(Rectangle())
+        .buttonStyle(.plain)
         .onHover { hover = $0 }
     }
 }

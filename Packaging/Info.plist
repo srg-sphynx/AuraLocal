@@ -41,12 +41,12 @@
 	     (GitHub Pages, S3, any web server). See docs/UPDATES.md. -->
 	<key>SUFeedURL</key>
 	<string>https://srg-sphynx.github.io/AuraLocal/appcast.xml</string>
-	<!-- EdDSA (ed25519) PUBLIC key. Generate the keypair once with Sparkle's
-	     `generate_keys` tool; the private key stays in your Keychain and the
-	     public key goes here. Updates whose signature doesn't match are rejected.
-	     Replace the placeholder below before publishing your first update. -->
+	<!-- EdDSA (ed25519) PUBLIC key. Generated with Sparkle's `generate_keys`;
+	     the matching private key lives in the srg-sphynx login Keychain and is
+	     used to sign each appcast. Updates whose signature doesn't match this key
+	     are rejected. -->
 	<key>SUPublicEDKey</key>
-	<string>REPLACE_WITH_YOUR_SPARKLE_ED25519_PUBLIC_KEY</string>
+	<string>Ss7+OduyDAmX5d6ShXvV1kHGGy1iWSMQLxwms1SOGD8=</string>
 	<!-- Check for updates automatically in the background. -->
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
