@@ -150,13 +150,13 @@ For the full technical design — the extractor set, schema, ANN/IVF index, retr
 - [User Guide](docs/USER_GUIDE.md) — a tour of every feature and setting
 - [Architecture](docs/ARCHITECTURE.md) — how ingestion, retrieval, storage, and the UI fit together
 - [Building](docs/BUILDING.md) — building from source and producing a release
+- [Updates](docs/UPDATES.md) — publishing Sparkle auto-updates (keys, appcast, hosting)
 - [Changelog](CHANGELOG.md) — version history
 
 ---
 
 ## Roadmap
 
-- **Automatic updates** — the next release will add built-in auto-updating, so new versions install themselves without a manual download.
 - Additional document formats and extractor coverage
 - Notarized, fully signed release builds
 - Expanded automated test coverage for the ingestion pipeline
@@ -168,7 +168,7 @@ For the full technical design — the extractor set, schema, ANN/IVF index, retr
 We would rather be upfront about the rough edges. If you hit any of these — or anything else — please [open an issue](https://github.com/srg-sphynx/AuraLocal/issues).
 
 - **Unsigned / non-notarized builds.** Current releases are ad-hoc signed. macOS Gatekeeper will warn on first launch; use right-click → **Open** or approve the app in Privacy & Security. Notarized builds are planned.
-- **No in-app updates yet.** Until auto-updating ships (see Roadmap), new versions must be downloaded manually from Releases.
+- **Auto-updates require a configured feed.** In-app updates ship via Sparkle, but the maintainer must set a real `SUPublicEDKey` and publish an appcast before they work — see [docs/UPDATES.md](docs/UPDATES.md). Until then, download new versions manually from Releases.
 - **Large first-index passes are heavy.** The initial embedding pass on very large vaults (hundreds of thousands of chunks) is a substantial one-time job. It is resumable and runs off the main thread, but it takes time and works your embedding provider hard.
 - **Approximate-nearest-neighbor index is opt-in.** The IVF ANN index is disabled by default; exact semantic scan is the verified, default path. Enable ANN only for very large collections, and expect a build step after indexing.
 - **Extractors are not yet covered by automated tests.** The multi-format extractors compile and run in the app, but there is no standalone test suite for them yet, so unusual documents may extract imperfectly. Expanding test coverage is on the roadmap.

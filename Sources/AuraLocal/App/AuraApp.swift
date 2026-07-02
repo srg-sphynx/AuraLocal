@@ -4,6 +4,7 @@ import AppKit
 @main
 struct AuraApp: App {
     @StateObject private var env = AppEnvironment()
+    @StateObject private var updater = UpdaterService()
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
@@ -18,6 +19,7 @@ struct AuraApp: App {
                 .environmentObject(env.chat)
                 .environmentObject(env.ollamaControl)
                 .environmentObject(env.theme)
+                .environmentObject(updater)
                 .frame(minWidth: 1080, minHeight: 680)
                 .background(WindowConfigurator())
                 .onAppear { env.onLaunch() }
@@ -26,6 +28,10 @@ struct AuraApp: App {
         .windowToolbarStyle(.unifiedCompact(showsTitle: false))
         .defaultSize(width: 1280, height: 820)
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") { updater.checkForUpdates() }
+                    .disabled(!updater.canCheckForUpdates)
+            }
             CommandGroup(replacing: .newItem) {
                 Button("New Chat") { env.chat.newSession(); env.section = .chat }
                     .keyboardShortcut("n", modifiers: .command)

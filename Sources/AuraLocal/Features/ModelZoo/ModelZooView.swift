@@ -6,6 +6,7 @@ struct ModelZooView: View {
     @EnvironmentObject var telemetry: TelemetryService
     @EnvironmentObject var settingsStore: SettingsStore
     @EnvironmentObject var ollama: OllamaControlService
+    @EnvironmentObject var theme: ThemeManager   // re-render in place on theme change
 
     var body: some View {
         ScrollView(showsIndicators: false) {

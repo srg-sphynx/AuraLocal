@@ -4,6 +4,7 @@ struct ChatView: View {
     @EnvironmentObject var chat: ChatViewModel
     @EnvironmentObject var env: AppEnvironment
     @EnvironmentObject var inference: InferenceManager
+    @EnvironmentObject var theme: ThemeManager   // re-render in place on theme change
 
     var body: some View {
         VStack(spacing: 0) {

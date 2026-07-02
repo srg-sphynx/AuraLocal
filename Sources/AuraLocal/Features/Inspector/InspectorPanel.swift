@@ -8,6 +8,7 @@ struct InspectorPanel: View {
     @EnvironmentObject var projects: ProjectStore
     @EnvironmentObject var indexing: IndexingService
     @EnvironmentObject var settingsStore: SettingsStore
+    @EnvironmentObject var theme: ThemeManager   // re-render in place on theme change
 
     var body: some View {
         VStack(spacing: 0) {

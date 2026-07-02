@@ -11,5 +11,11 @@
     <true/>
     <key>com.apple.security.files.user-selected.read-write</key>
     <true/>
+    <!-- Allow loading the embedded Sparkle.framework. Under the hardened runtime,
+         Library Validation otherwise refuses any framework whose signing identity
+         doesn't match the main executable's — which includes our ad-hoc-signed
+         (Team-ID-less) Sparkle bundle. -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
 </dict>
 </plist>

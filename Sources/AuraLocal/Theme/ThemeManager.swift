@@ -76,21 +76,21 @@ extension ThemePalette {
             surfaceContainerHighest: Color(hex: 0x353437),
             surfaceBright: Color(hex: 0x39393B),
             onSurface: Color(hex: hc ? 0xFFFFFF : 0xF2F1F4),
-            onSurfaceVariant: Color(hex: hc ? 0xEAE8F2 : 0xCFCDDA),
-            outline: Color(hex: hc ? 0xCAC8D6 : 0xA6A4B4),
-            outlineVariant: Color(hex: hc ? 0x6A6878 : 0x464554),
+            onSurfaceVariant: Color(hex: hc ? 0xF3F1FB : 0xCFCDDA),
+            outline: Color(hex: hc ? 0xE6E4F0 : 0xA6A4B4),
+            outlineVariant: Color(hex: hc ? 0x8C8A9A : 0x464554),
             primary: Color(hex: 0xC2C1FF), primaryVivid: Color(hex: 0x5E5CE6),
             onPrimary: .white, onPrimaryReadable: .white, primaryFixed: Color(hex: 0xE2DFFF),
             secondary: Color(hex: 0xB9C8DE), secondaryContainer: Color(hex: 0x39485A),
             success: Color(hex: 0x42E355), successContainer: Color(hex: 0x008122),
             warning: Color(hex: 0xF5C04E), error: Color(hex: 0xFFB4AB), errorContainer: Color(hex: 0x93000A),
-            glassBorder: Color.white.opacity(hc ? 0.26 : 0.15),
-            glassBorderSoft: Color.white.opacity(hc ? 0.14 : 0.08),
-            cardFill: Color.white.opacity(hc ? 0.06 : 0.04),
-            cardFillSelected: Color.white.opacity(0.09),
+            glassBorder: Color.white.opacity(hc ? 0.46 : 0.15),
+            glassBorderSoft: Color.white.opacity(hc ? 0.26 : 0.08),
+            cardFill: Color.white.opacity(hc ? 0.11 : 0.04),
+            cardFillSelected: Color.white.opacity(hc ? 0.16 : 0.09),
             hoverFill: Color.white.opacity(0.10),
-            fieldFill: Color.black.opacity(0.22),
-            trackFill: Color.white.opacity(0.07))
+            fieldFill: Color.black.opacity(hc ? 0.34 : 0.22),
+            trackFill: Color.white.opacity(hc ? 0.12 : 0.07))
     }
 
     private static func lightBase(hc: Bool) -> ThemePalette {
@@ -103,23 +103,23 @@ extension ThemePalette {
             surfaceContainerHighest: Color(hex: 0xDADAE3),
             surfaceBright: Color(hex: 0xFFFFFF),
             onSurface: Color(hex: hc ? 0x000000 : 0x1A1A20),
-            onSurfaceVariant: Color(hex: hc ? 0x26252F : 0x45434F),
-            outline: Color(hex: hc ? 0x3C3B47 : 0x6B6979),
-            outlineVariant: Color(hex: hc ? 0x9A98A6 : 0xC6C4D1),
-            primary: Color(hex: 0x4F4DD6), primaryVivid: Color(hex: 0x5E5CE6),
+            onSurfaceVariant: Color(hex: hc ? 0x161520 : 0x45434F),
+            outline: Color(hex: hc ? 0x24232D : 0x6B6979),
+            outlineVariant: Color(hex: hc ? 0x6E6C7A : 0xC6C4D1),
+            primary: Color(hex: hc ? 0x33319E : 0x4F4DD6), primaryVivid: Color(hex: 0x5E5CE6),
             onPrimary: .white, onPrimaryReadable: .white, primaryFixed: Color(hex: 0x3F3DBE),
             secondary: Color(hex: 0x44566B), secondaryContainer: Color(hex: 0xD7E3F7),
             success: Color(hex: hc ? 0x107A24 : 0x1F9D38), successContainer: Color(hex: 0xB6F2BE),
             warning: Color(hex: 0xB8860B), error: Color(hex: hc ? 0xA1000A : 0xC0341E), errorContainer: Color(hex: 0xFFDAD4),
-            glassBorder: Color.black.opacity(hc ? 0.26 : 0.15),
-            glassBorderSoft: Color.black.opacity(hc ? 0.16 : 0.10),
+            glassBorder: Color.black.opacity(hc ? 0.46 : 0.15),
+            glassBorderSoft: Color.black.opacity(hc ? 0.30 : 0.10),
             // Light mode reads best with bright, white-based cards/fields over the
             // pane (black overlays just stack more gray on gray).
-            cardFill: Color.white.opacity(hc ? 0.85 : 0.72),
-            cardFillSelected: Color.white.opacity(0.95),
-            hoverFill: Color.black.opacity(0.06),
-            fieldFill: Color.white.opacity(hc ? 0.95 : 0.88),
-            trackFill: Color.black.opacity(0.10))
+            cardFill: Color.white.opacity(hc ? 0.96 : 0.72),
+            cardFillSelected: Color.white.opacity(hc ? 1.0 : 0.95),
+            hoverFill: Color.black.opacity(hc ? 0.10 : 0.06),
+            fieldFill: Color.white.opacity(hc ? 1.0 : 0.88),
+            trackFill: Color.black.opacity(hc ? 0.16 : 0.10))
     }
 
     /// Five quick accent swatches offered in the picker.
@@ -131,8 +131,11 @@ extension ThemePalette {
 
 /// Owns the active theme. A singleton so `Theme.Palette.*` (static, used in ~200
 /// call sites) can read the live palette without threading an environment value
-/// through every view. Live switching is achieved by bumping `revision` and keying
-/// the root view on it (`.id(revision)`), forcing a clean rebuild.
+/// through every view. Live switching is achieved by publishing `current`
+/// (`objectWillChange`): the shell and each screen observe this `ThemeManager`, so
+/// they re-render in place and re-read the fresh static palette — no `.id()` tree
+/// rebuild, so scroll positions and other transient state survive an appearance
+/// change. `revision` is kept as a monotonically increasing change counter.
 @MainActor
 final class ThemeManager: ObservableObject {
     static let shared = ThemeManager()

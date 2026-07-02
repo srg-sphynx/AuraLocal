@@ -5,6 +5,7 @@ struct SidebarView: View {
     @EnvironmentObject var inference: InferenceManager
     @EnvironmentObject var chat: ChatViewModel
     @EnvironmentObject var projects: ProjectStore
+    @EnvironmentObject var theme: ThemeManager   // re-render in place on theme change
 
     var body: some View {
         VStack(spacing: 0) {

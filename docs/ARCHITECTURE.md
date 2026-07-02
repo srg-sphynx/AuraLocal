@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes how Aura Local is built: the ingestion pipeline, the retrieval stack, on-disk storage, model management, diagnostics, and the theming system. It reflects the current release (3.1.0).
+This document describes how Aura Local is built: the ingestion pipeline, the retrieval stack, on-disk storage, model management, diagnostics, and the theming system. It reflects the current release (3.2.0).
 
 Aura Local is a native macOS app written in Swift and SwiftUI (Swift tools 5.9, macOS 14+). It is distributed as a Swift Package Manager executable target and is intentionally **non-sandboxed** so it can shell out to the Ollama CLI and read local files and Ollama's on-disk model store.
 

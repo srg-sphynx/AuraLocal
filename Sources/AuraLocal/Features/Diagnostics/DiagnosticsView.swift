@@ -7,6 +7,7 @@ import AppKit
 struct DiagnosticsView: View {
     @EnvironmentObject var projects: ProjectStore
     @EnvironmentObject var indexing: IndexingService
+    @EnvironmentObject var theme: ThemeManager   // re-render in place on theme change
     @StateObject private var model = DiagnosticsModel()
 
     var body: some View {

@@ -4,9 +4,12 @@ struct SettingsView: View {
     @EnvironmentObject var settingsStore: SettingsStore
     @EnvironmentObject var inference: InferenceManager
     @EnvironmentObject var env: AppEnvironment
+    @EnvironmentObject var updater: UpdaterService
+    @EnvironmentObject var theme: ThemeManager   // re-render in place on theme change
 
     @State private var showClearConfirm = false
     @State private var showResetConfirm = false
+    @State private var autoUpdate = true
 
     private var s: Binding<AppSettings> { $settingsStore.settings }
 
@@ -23,6 +26,7 @@ struct SettingsView: View {
                 AppearanceSettingsView()
                 storageSection
                 onboardingSection
+                updatesSection
                 dangerZone
                 aboutSection
             }
@@ -176,6 +180,41 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: Software updates
+
+    private var updatesSection: some View {
+        SettingsCard(title: "Software Updates", symbol: "arrow.down.circle") {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Automatic updates").font(Theme.Font.body().weight(.semibold)).foregroundStyle(Theme.Palette.onSurface)
+                    Text("Check for new versions in the background and notify you when one is ready to install.")
+                        .font(Theme.Font.bodySm()).foregroundStyle(Theme.Palette.onSurfaceVariant)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Toggle("", isOn: $autoUpdate)
+                    .labelsHidden().toggleStyle(.switch).tint(Theme.Palette.primaryVivid)
+                    .onChange(of: autoUpdate) { _, on in updater.automaticallyChecksForUpdates = on }
+            }
+            Divider().overlay(Theme.glassBorderSoft)
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Check now").font(Theme.Font.body().weight(.semibold)).foregroundStyle(Theme.Palette.onSurface)
+                    Text("Update feed: \(updater.feedURLString)")
+                        .font(Theme.Font.micro()).foregroundStyle(Theme.Palette.outline)
+                        .textSelection(.enabled).lineLimit(1).truncationMode(.middle)
+                }
+                Spacer(minLength: 8)
+                Button { updater.checkForUpdates() } label: {
+                    Label("Check for Updates", systemImage: "arrow.down.circle").font(Theme.Font.bodySm())
+                }
+                .buttonStyle(GhostGlassButtonStyle())
+                .disabled(!updater.canCheckForUpdates)
+            }
+        }
+        .onAppear { autoUpdate = updater.automaticallyChecksForUpdates }
+    }
+
     // MARK: Danger zone
 
     private var dangerZone: some View {
@@ -223,7 +262,7 @@ struct SettingsView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Aura Local").font(Theme.Font.body().weight(.semibold)).foregroundStyle(Theme.Palette.onSurface)
-                    Text("Local RAG chat for Ollama & LM Studio · v3.1").font(Theme.Font.bodySm()).foregroundStyle(Theme.Palette.outline)
+                    Text("Local RAG chat for Ollama & LM Studio · v3.2").font(Theme.Font.bodySm()).foregroundStyle(Theme.Palette.outline)
                 }
                 Spacer()
                 Text("100% on-device").font(Theme.Font.bodySm()).foregroundStyle(Theme.Palette.success)

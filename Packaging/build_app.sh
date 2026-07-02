@@ -32,17 +32,41 @@ cp "$ICON_WORK/icon_1024.png" "$ICONSET/icon_512x512@2x.png"
 iconutil -c icns "$ICONSET" -o "$ICON_WORK/AppIcon.icns"
 
 echo "▸ Assembling bundle…"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 cp "$BUILD_DIR/$EXEC_NAME" "$APP/Contents/MacOS/$EXEC_NAME"
 cp "$PKG/Info.plist" "$APP/Contents/Info.plist"
 cp "$ICON_WORK/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 
+# Embed Sparkle.framework (SPM copies it next to the built binary) so the
+# auto-updater is available at runtime via the @executable_path/../Frameworks rpath.
+SPARKLE_SRC="$BUILD_DIR/Sparkle.framework"
+SPARKLE_FW="$APP/Contents/Frameworks/Sparkle.framework"
+if [ -d "$SPARKLE_SRC" ]; then
+  echo "▸ Embedding Sparkle.framework…"
+  rm -rf "$SPARKLE_FW"
+  ditto "$SPARKLE_SRC" "$SPARKLE_FW"
+else
+  echo "  ⚠︎ Sparkle.framework not found in $BUILD_DIR — auto-update will be disabled."
+fi
+
 echo "▸ Code signing (ad-hoc)…"
-codesign --force --deep --options runtime \
+# Sparkle bundles helper executables (Autoupdate, Updater.app, XPC services) that
+# must be signed inside-out before the framework and app, or the seal is invalid.
+if [ -d "$SPARKLE_FW" ]; then
+  SPV="$SPARKLE_FW/Versions/B"
+  find "$SPV/XPCServices" -maxdepth 1 -name "*.xpc" 2>/dev/null | while read -r xpc; do
+    codesign --force --options runtime --sign - "$xpc"
+  done
+  [ -d "$SPV/Updater.app" ] && codesign --force --options runtime --sign - "$SPV/Updater.app"
+  [ -f "$SPV/Autoupdate" ] && codesign --force --options runtime --sign - "$SPV/Autoupdate"
+  codesign --force --options runtime --sign - "$SPARKLE_FW"
+fi
+# Sign the app itself last (no --deep: nested code is already signed above).
+codesign --force --options runtime \
   --entitlements "$PKG/AuraLocal.entitlements" \
   --sign - "$APP" 2>/dev/null || \
-codesign --force --deep --sign - "$APP"
+codesign --force --sign - "$APP"
 codesign --verify --deep --strict "$APP" && echo "  ✓ signature valid"
 
 echo "▸ Creating DMG…"

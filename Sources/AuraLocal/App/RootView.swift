@@ -2,8 +2,9 @@ import SwiftUI
 import AppKit
 
 /// Three-pane shell: floating sidebar · main section · collapsible inspector.
-/// Also the theme coordinator — applies the persisted theme config and rebuilds
-/// the tree (`.id(theme.revision)`) when the user changes appearance.
+/// Also the theme coordinator — applies the persisted theme config so the palette
+/// re-resolves live. Views re-color by observing `ThemeManager` (not by an
+/// `.id()` rebuild), which keeps scroll positions and other transient state intact.
 struct RootView: View {
     @EnvironmentObject var env: AppEnvironment
     @EnvironmentObject var theme: ThemeManager
@@ -39,7 +40,10 @@ struct RootView: View {
                 OnboardingFlow().zIndex(10)
             }
         }
-        .id(theme.revision)
+        // NB: intentionally no `.id(theme.revision)` — that rebuilt the whole tree
+        // on every appearance tweak and reset scroll positions (Settings jumping to
+        // the top). Re-theming now flows through `ThemeManager` observation on each
+        // screen/chrome view, re-rendering in place.
         .preferredColorScheme(theme.preferredColorScheme)
         .animation(.easeInOut(duration: 0.22), value: env.inspectorVisible)
         .animation(.easeInOut(duration: 0.18), value: env.section)

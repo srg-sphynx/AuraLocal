@@ -4,6 +4,7 @@ struct IndexingView: View {
     @EnvironmentObject var indexing: IndexingService
     @EnvironmentObject var projects: ProjectStore
     @EnvironmentObject var settingsStore: SettingsStore
+    @EnvironmentObject var theme: ThemeManager   // re-render in place on theme change
 
     var body: some View {
         ScrollView(showsIndicators: false) {

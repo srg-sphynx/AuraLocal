@@ -4,7 +4,8 @@ struct ChatComposer: View {
     @EnvironmentObject var chat: ChatViewModel
     @EnvironmentObject var projects: ProjectStore
     @EnvironmentObject var inference: InferenceManager
-    @FocusState private var focused: Bool
+    @State private var focused: Bool = false
+    @State private var composerHeight: CGFloat = 24
     /// Local draft: typing must not publish through the ChatViewModel on every
     /// keystroke (that re-renders every observer — sidebar, header, inspector).
     @State private var draft: String = ""
@@ -18,14 +19,12 @@ struct ChatComposer: View {
                             .font(Theme.Font.body())
                             .foregroundStyle(Theme.Palette.outline)
                             .padding(.horizontal, 4).padding(.vertical, 8)
+                            .allowsHitTesting(false)
                     }
-                    TextEditor(text: $draft)
-                        .font(Theme.Font.body())
-                        .foregroundStyle(Theme.Palette.onSurface)
-                        .scrollContentBackground(.hidden)
-                        .frame(minHeight: 24, maxHeight: 120)
-                        .focused($focused)
-                        .onSubmit(send)
+                    ComposerTextView(text: $draft, height: $composerHeight,
+                                     isFocused: $focused, onSend: send)
+                        .frame(height: composerHeight)
+                        .padding(.horizontal, 4).padding(.vertical, 6)
                 }
                 .padding(.horizontal, 8).padding(.vertical, 6)
                 .background(RoundedRectangle(cornerRadius: Theme.Radius.md).fill(Theme.Palette.fieldFill))
@@ -58,7 +57,7 @@ struct ChatComposer: View {
                         .font(Theme.Font.bodySm()).foregroundStyle(Theme.Palette.outline)
                 }
                 Spacer()
-                Text("⌘↩ to send")
+                Text("↩ to send · ⇧↩ for a new line")
                     .font(Theme.Font.bodySm()).foregroundStyle(Theme.Palette.outline)
             }
             .padding(.horizontal, 2)
