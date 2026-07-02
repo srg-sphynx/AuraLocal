@@ -10,6 +10,25 @@ card in Settings.
 This document is the operator's guide: how it's wired, the one-time setup, and
 the per-release publishing steps.
 
+## Live configuration (already set up)
+
+The channel is provisioned — you don't need to redo the one-time setup:
+
+- **Signing key:** an EdDSA keypair exists; the private key is in the `srg-sphynx`
+  login **Keychain**, and the matching public key is in `Info.plist`
+  (`SUPublicEDKey = Ss7+OduyDAmX5d6ShXvV1kHGGy1iWSMQLxwms1SOGD8=`).
+  **Back the private key up** (`generate_keys -x sparkle_private_key.pem`) and keep
+  it safe — losing it means no future update can be signed.
+- **Feed:** `SUFeedURL = https://srg-sphynx.github.io/AuraLocal/appcast.xml`, served
+  from the repo's **`gh-pages`** branch (which holds only `appcast.xml`, a tiny
+  `index.html`, and `.nojekyll`).
+- **Binaries:** each version's `.dmg` is attached to a **GitHub Release** (tag
+  `vX.Y.Z`); the appcast's `<enclosure url>` points at that release asset.
+
+So a release is: build DMG → attach to a Release → sign into `appcast.xml` → push
+`gh-pages`. The [`Packaging/release_update.sh`](../Packaging/release_update.sh)
+note at the end automates most of it.
+
 ---
 
 ## How it's wired
