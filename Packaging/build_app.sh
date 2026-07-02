@@ -51,6 +51,8 @@ DMG_STAGE="$DIST/dmg"
 rm -rf "$DMG_STAGE"; mkdir -p "$DMG_STAGE"
 cp -R "$APP" "$DMG_STAGE/"
 ln -s /Applications "$DMG_STAGE/Applications"
+# Include first-run install instructions (unsigned app → Gatekeeper bypass).
+cp "$PKG/DMG-README.txt" "$DMG_STAGE/How to Install — Read Me First.txt"
 DMG_PATH="$BUILDS_DIR/AuraLocal-v$VERSION.dmg"
 # Replace any prior versioned DMGs so the folder holds only the current build.
 rm -f "$BUILDS_DIR"/AuraLocal-v*.dmg
