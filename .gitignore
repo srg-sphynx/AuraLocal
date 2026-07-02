@@ -1,0 +1,20 @@
+# Swift Package Manager / build artifacts
+.build/
+.dist/
+Packaging/*.icns
+DerivedData/
+
+# Distributables (published via GitHub Releases, not source control)
+*.dmg
+*.app/
+
+# Original screenshot working folder (curated copies live in docs/screenshots)
+Screenshots for Gi/
+
+# macOS
+.DS_Store
+*.swp
+
+# Xcode
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
