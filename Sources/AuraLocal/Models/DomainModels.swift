@@ -128,6 +128,10 @@ struct Citation: Identifiable, Hashable, Codable {
     var heading: String?
     var snippet: String
     var score: Double
+    /// Set once the answer has streamed: true when the response actually referenced
+    /// this file (by bracketed title or file name). Drives the "cited in this answer"
+    /// highlight. Optional so sessions saved before v4 decode cleanly.
+    var usedInAnswer: Bool? = nil
 }
 
 struct ChatMessage: Identifiable, Hashable, Codable {

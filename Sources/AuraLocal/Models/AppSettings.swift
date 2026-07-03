@@ -74,6 +74,16 @@ struct AppSettings: Codable, Equatable {
     /// the user's `includedExtensions` so upgrades gain HTML/DOCX/EPUB/… automatically.
     var formatsUpgradedV3: Bool = false
 
+    // MARK: RAG v4 — adaptive source cache
+    /// Keep a per-chat working set of the sources already retrieved so follow-up
+    /// questions that stay within that material are answered WITHOUT re-scanning the
+    /// whole vector store. Purely additive speed: a question that drifts to new files
+    /// always falls back to a full vault scan and merges the new sources in.
+    var adaptiveSourceCache: Bool = true
+    /// Minimum best-cosine a query must reach against the cached working set to be
+    /// answered from cache (the "fast path"). Below this the full vault is re-scanned.
+    var adaptiveReuseThreshold: Double = 0.60
+
     // MARK: Onboarding
     var hasCompletedOnboarding: Bool = false
     var onboardingVersion: Int = 0
@@ -137,6 +147,8 @@ extension AppSettings {
         pdfOCRFallback   = s(.pdfOCRFallback, d.pdfOCRFallback)
         maxFileSizeMB    = s(.maxFileSizeMB, d.maxFileSizeMB)
         formatsUpgradedV3 = s(.formatsUpgradedV3, d.formatsUpgradedV3)
+        adaptiveSourceCache = s(.adaptiveSourceCache, d.adaptiveSourceCache)
+        adaptiveReuseThreshold = s(.adaptiveReuseThreshold, d.adaptiveReuseThreshold)
         hasCompletedOnboarding = s(.hasCompletedOnboarding, d.hasCompletedOnboarding)
         onboardingVersion = s(.onboardingVersion, d.onboardingVersion)
         lastSeenVersion = s(.lastSeenVersion, d.lastSeenVersion)

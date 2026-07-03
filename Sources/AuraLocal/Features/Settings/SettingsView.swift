@@ -121,6 +121,11 @@ struct SettingsView: View {
                 .toggleStyle(.switch).tint(Theme.Palette.primaryVivid).font(Theme.Font.body())
             Toggle("Parent-document expansion (include neighboring chunks)", isOn: s.parentExpansion)
                 .toggleStyle(.switch).tint(Theme.Palette.primaryVivid).font(Theme.Font.body())
+            Toggle("Adaptive source cache (fast follow-ups within a chat's sources)", isOn: s.adaptiveSourceCache)
+                .toggleStyle(.switch).tint(Theme.Palette.primaryVivid).font(Theme.Font.body())
+            if settingsStore.settings.adaptiveSourceCache {
+                sliderField("Cache reuse threshold", value: s.adaptiveReuseThreshold, range: 0.4...0.9, step: 0.01, fmt: "%.2f")
+            }
 
             intField("Max sources per answer (Top-K)", value: s.retrievalTopK, range: 1...100, step: 1)
             intField("Smart Scan window (keyword candidate files)", value: s.candidateFileWindow, range: 5...200, step: 5)
@@ -129,7 +134,7 @@ struct SettingsView: View {
             sliderField("Minimum Similarity", value: s.minSimilarity, range: 0...1, step: 0.01, fmt: "%.2f")
             intField("Chunk Size (tokens)", value: s.chunkMaxTokens, range: 128...2048, step: 64)
             intField("Chunk Overlap (tokens)", value: s.chunkOverlap, range: 0...256, step: 16)
-            Text("Every note is embedded up-front, so queries only embed the query. Retrieval fuses keyword (BM25) + semantic (cosine) candidates with RRF and folds recent turns in so follow-ups keep their context. The ANN index keeps semantic search fast as the vault grows; it falls back to an exact scan automatically.")
+            Text("Every note is embedded up-front, so queries only embed the query. Retrieval fuses keyword (BM25) + semantic (cosine) candidates with RRF and folds recent turns in so follow-ups keep their context. The ANN index keeps semantic search fast as the vault grows; it falls back to an exact scan automatically. The adaptive source cache maps the sources each chat has pulled so in-topic follow-ups answer without a full re-scan — a question about new material always searches the whole vault again.")
                 .font(Theme.Font.bodySm()).foregroundStyle(Theme.Palette.onSurfaceVariant)
         }
     }

@@ -103,6 +103,38 @@ struct InspectorPanel: View {
                     .foregroundStyle(Theme.Palette.onSurfaceVariant)
             }
             .toggleStyle(.switch).controlSize(.mini).tint(Theme.Palette.primaryVivid)
+
+            adaptiveCacheControls
+        }
+    }
+
+    // MARK: Adaptive source cache (fast follow-ups within a chat's sources)
+
+    @ViewBuilder
+    private var adaptiveCacheControls: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle(isOn: $settingsStore.settings.adaptiveSourceCache) {
+                Text("Adaptive source cache").font(Theme.Font.bodySm())
+                    .foregroundStyle(Theme.Palette.onSurfaceVariant)
+            }
+            .toggleStyle(.switch).controlSize(.mini).tint(Theme.Palette.primaryVivid)
+            Text("Answer follow-ups from the sources already open in this chat, without re-scanning the whole vault. New topics still trigger a fresh search.")
+                .font(Theme.Font.micro()).foregroundStyle(Theme.Palette.outline)
+                .fixedSize(horizontal: false, vertical: true)
+            if settingsStore.settings.adaptiveSourceCache {
+                sliderRow(title: "Reuse Threshold",
+                          value: $settingsStore.settings.adaptiveReuseThreshold,
+                          range: 0.4...0.9, step: 0.01,
+                          label: String(format: "%.2f", settingsStore.settings.adaptiveReuseThreshold),
+                          caption: "How close a follow-up must be to the cached sources to skip a full re-scan. Higher = re-scans more often (fresher), lower = reuses more (faster).")
+                if let sid = chat.currentSessionID {
+                    let n = indexing.cachedSourceCount(session: sid)
+                    if n > 0 {
+                        Label("\(n) sources mapped for this chat", systemImage: "bolt.horizontal.circle")
+                            .font(Theme.Font.micro()).foregroundStyle(Theme.Palette.primary)
+                    }
+                }
+            }
         }
     }
 

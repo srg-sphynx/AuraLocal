@@ -34,6 +34,10 @@ final class IndexingService: ObservableObject {
 
     /// Per-project ANN indexes, lazily loaded from their sidecar files.
     private var vectorIndexes: [UUID: VectorIndex] = [:]
+    /// Per-chat working set of already-retrieved sources (v4 adaptive cache). Lets a
+    /// follow-up that stays within the sources a chat has pulled answer without a
+    /// store-wide re-scan; questions that drift out fall back to a full scan + merge.
+    private let sessionCache = SessionSourceCache()
     /// Below this many embedded chunks the exact cosine scan is fast enough — skip ANN.
     private static let annMinChunks = 2000
     /// Cap (seconds) on a single query embed before retrieval degrades to keyword
@@ -53,7 +57,15 @@ final class IndexingService: ObservableObject {
     func clearVectorIndexes() {
         for idx in vectorIndexes.values { idx.delete() }
         vectorIndexes.removeAll()
+        sessionCache.resetAll()
     }
+
+    /// Forget a chat's adaptive working set — call when a chat is started/deleted or
+    /// its vault changes, so stale sources never leak into a fast-path answer.
+    func resetSessionCache(_ sessionID: UUID) { sessionCache.reset(session: sessionID) }
+    func resetAllSessionCaches() { sessionCache.resetAll() }
+    /// Sources currently cached for a chat (diagnostics / inspector).
+    func cachedSourceCount(session: UUID) -> Int { sessionCache.count(session: session) }
 
     init(database: AppDatabase, settingsStore: SettingsStore, inference: InferenceManager) {
         self.database = database
@@ -148,6 +160,10 @@ final class IndexingService: ObservableObject {
         }
 
         refreshInventory(project.id)
+
+        // A re-scan can re-chunk / re-embed files, so any chat's cached working set may
+        // now hold stale chunks — drop them all; the next query rebuilds from the store.
+        sessionCache.resetAll()
 
         // Always embed everything that still lacks a vector for the current model
         // (Full Embed is the only mode in v2 — queries then only embed the query).
@@ -422,27 +438,49 @@ final class IndexingService: ObservableObject {
 
     // MARK: - Retrieval (Smart Scan + hybrid re-rank)
 
-    func retrieve(query: String, project: Project) async -> [RetrievedChunk] {
+    func retrieve(query: String, project: Project, session: UUID? = nil) async -> [RetrievedChunk] {
         retrievalNote = nil
         let window = max(1, settings.candidateFileWindow)
 
         // 1. Keyword candidates (BM25) — chunks from the top-N files by keyword score.
+        //    Cheap (FTS index lookup, no vector scan); reused by both the fusion (full
+        //    and fast paths) and the lexical fallback, so it runs once per query.
         let rawCandidates = database.ftsCandidates(projectID: project.id, query: query, limit: window * 12)
         let topFiles = orderedTopFiles(rawCandidates, limit: window)
         let keywordIDs = rawCandidates.filter { topFiles.contains($0.filePath) }.map { $0.chunkID }
         let bm = Dictionary(rawCandidates.map { ($0.chunkID, $0.bm25) }, uniquingKeysWith: { a, _ in a })
 
-        // 2. Semantic path — embed ONLY the query (chunks are already vectorized), then
-        //    union the keyword candidates with a pure-cosine top-K over the whole store.
-        //    This is what lets a reworded follow-up surface chunks it shares no keywords
-        //    with, and it no longer re-embeds anything at query time.
+        // 2. Semantic path — embed ONLY the query (chunks are already vectorized). Doing
+        //    this up front lets us first consult this chat's working set before touching
+        //    the store, and it no longer re-embeds anything at query time.
         if inference.embeddingReady, !settings.embeddingModel.isEmpty {
             let provider = ProviderFactory.make(settings.embeddingProvider, settings: settings)
             let qv = await Self.embedQuery(provider: provider, query: query,
                                            model: settings.embeddingModel, timeout: Self.queryEmbedTimeout)
             if let qv, !qv.isEmpty {
-                // ANN plan (computed on-main from the in-memory centroids). Empty/nil ⇒
-                // exact scan. This is where the 888k-chunk O(N) jitter gets cut.
+                // 2a. ADAPTIVE FAST PATH — is this question already covered by the sources
+                //     this chat has pulled? Score them in memory (instant) and, if the
+                //     coverage is strong, rank straight off the working set — skipping the
+                //     store-wide O(N) cosine scan entirely. Keyword signal (`bm`) is fresh
+                //     from step 1, so the fast path is still a proper hybrid.
+                if settings.adaptiveSourceCache, let session {
+                    let cov = sessionCache.coverage(session: session, project: project.id,
+                                                    queryVector: qv,
+                                                    reuseThreshold: settings.adaptiveReuseThreshold)
+                    if Self.isCacheHit(cov, threshold: settings.adaptiveReuseThreshold) {
+                        let cand = cov.scored.map { (chunk: $0.chunk, cos: $0.cos, bm: bm[$0.chunk.id] ?? 0) }
+                        let ranked = await postProcess(rankCandidates(cand), query: query, project: project)
+                        if !ranked.isEmpty {
+                            sessionCache.touch(session: session, ids: ranked.map(\.chunkID))
+                            retrievalNote = "⚡︎ Adaptive cache — answered from \(cov.scored.count) sources already open in this chat (no full re-scan)."
+                            return ranked
+                        }
+                    }
+                }
+
+                // 2b. FULL PATH — union the keyword candidates with a pure-cosine top-K
+                //     over the whole store (ANN-accelerated when built). This is what lets
+                //     a question about a file *outside* the working set find and pull it in.
                 let annBuckets = annBucketPlan(project: project.id, queryVector: qv)
                 let semantic = await semanticScan(projectID: project.id, queryVector: qv,
                                                   k: max(1, settings.semanticCandidateCount),
@@ -454,7 +492,17 @@ final class IndexingService: ObservableObject {
                     guard c.vector.count == qv.count else { return nil }
                     return (c, Double(VectorMath.cosine(qv, c.vector)), bm[c.id] ?? 0)
                 }
-                if !scored.isEmpty { return await postProcess(rankCandidates(scored), query: query, project: project) }
+                if !scored.isEmpty {
+                    // Fold the whole candidate pool (not just the top-K) into the chat's
+                    // working set so later follow-ups have rich material to fast-path on.
+                    if let session {
+                        sessionCache.merge(session: session, project: project.id,
+                                           scored: scored.map { (chunk: $0.chunk, cos: $0.cos) })
+                    }
+                    let ranked = await postProcess(rankCandidates(scored), query: query, project: project)
+                    if let session { sessionCache.touch(session: session, ids: ranked.map(\.chunkID)) }
+                    return ranked
+                }
                 retrievalNote = "No embedded chunks yet — finish indexing to enable semantic search."
             } else {
                 retrievalNote = "Semantic step unavailable — showing keyword matches."
@@ -470,6 +518,14 @@ final class IndexingService: ObservableObject {
             return []
         }
         return await postProcess(lexicalRank(database.chunksByIDs(keywordIDs), bm: bm), query: query, project: project)
+    }
+
+    /// Decide whether a chat's working set covers the current query well enough to
+    /// answer from cache. Needs either a couple of strong hits or one very strong one,
+    /// so a genuinely new question still falls through to a full vault scan.
+    private static func isCacheHit(_ cov: SessionSourceCache.Coverage, threshold: Double) -> Bool {
+        guard !cov.isEmpty else { return false }
+        return cov.strongCount >= 2 || cov.best >= threshold + 0.12
     }
 
     /// Nearest ANN buckets for the query, or nil when ANN is disabled/unbuilt (⇒ exact scan).
@@ -580,7 +636,10 @@ final class IndexingService: ObservableObject {
     ///    the BM25 keyword rank — parameter-free and more robust than a weighted blend.
     ///    (`.llmJudge` then re-orders the top slice in `postProcess`.)
     private func rankCandidates(_ scored: [(chunk: EmbeddedChunk, cos: Double, bm: Double)]) -> [RetrievedChunk] {
-        let kept = scored.filter { $0.cos >= settings.minSimilarity }
+        // Keep anything above the similarity floor, PLUS any strong keyword match even if
+        // its cosine is below the floor — otherwise a passage that's a perfect term match
+        // the embedder happens to miss gets dropped before fusion, defeating the "hybrid".
+        let kept = scored.filter { $0.cos >= settings.minSimilarity || $0.bm != 0 }
         guard !kept.isEmpty else { retrievalNote = "No chunks above the similarity threshold."; return [] }
 
         if settings.rerankMode == .off {
@@ -598,18 +657,38 @@ final class IndexingService: ObservableObject {
 
         let keywordOrder = kept.enumerated()
             .filter { $0.element.bm != 0 }
-            .sorted { $0.element.bm < $1.element.bm }   // lower bm25 = better
+            .sorted { $0.element.bm < $1.element.bm }   // lower (more negative) bm25 = better
         var kwRank = [Int: Int]()
         for (r, e) in keywordOrder.enumerated() { kwRank[e.offset] = r }
 
-        let fused = kept.enumerated().map { (i, it) -> (EmbeddedChunk, Double) in
+        let fused = kept.enumerated().map { (i, it) -> (chunk: EmbeddedChunk, fused: Double, cos: Double) in
             var score = 1.0 / (k0 + Double(semRank[i] ?? kept.count))
             if let kr = kwRank[i] { score += 1.0 / (k0 + Double(kr)) }
-            return (it.chunk, score)
-        }.sorted { $0.1 > $1.1 }
+            return (it.chunk, score, it.cos)
+        }.sorted { $0.fused > $1.fused }
 
-        return fused.prefix(settings.retrievalTopK).map { toRetrieved($0.0, score: $0.1) }
+        #if DEBUG
+        logFusion(fused, keptCount: kept.count, fusedCount: fused.count, keywordHits: kwRank.count)
+        #endif
+
+        // The RRF value fixes the ORDER, but it's a tiny number (~0.02) that reads as
+        // "2%" if shown as a relevance. Surface the semantic similarity as the score
+        // instead — a meaningful 0–100% — while keeping the fused order.
+        return fused.prefix(settings.retrievalTopK).map { toRetrieved($0.chunk, score: ($0.cos + 1) / 2) }
     }
+
+    #if DEBUG
+    /// Observability for the "is the hybrid re-rank working?" question: log the top of
+    /// the fused order with each item's cosine so you can see semantic + keyword signals
+    /// combining. DEBUG-only; compiled out of release builds.
+    private func logFusion(_ fused: [(chunk: EmbeddedChunk, fused: Double, cos: Double)],
+                           keptCount: Int, fusedCount: Int, keywordHits: Int) {
+        let head = fused.prefix(5).map {
+            String(format: "  • %@  cos=%.3f  rrf=%.4f", $0.chunk.fileName, $0.cos, $0.fused)
+        }.joined(separator: "\n")
+        Log.indexing.debug("Hybrid RRF: \(keptCount) candidates (\(keywordHits) keyword hits) → top \(min(5, fusedCount)):\n\(head)")
+    }
+    #endif
 
     private func lexicalRank(_ chunks: [EmbeddedChunk], bm: [Int64: Double]) -> [RetrievedChunk] {
         let sorted = chunks.sorted { (bm[$0.id] ?? 0) < (bm[$1.id] ?? 0) }

@@ -64,6 +64,7 @@ final class ChatViewModel: ObservableObject {
     func selectSession(_ id: UUID) { currentSessionID = id }
 
     func deleteSession(_ id: UUID) {
+        indexing.resetSessionCache(id)
         sessions.removeAll { $0.id == id }
         if currentSessionID == id { currentSessionID = sessions.first?.id }
         if sessions.isEmpty { newSession() }
@@ -121,14 +122,12 @@ final class ChatViewModel: ObservableObject {
             let retrievalQuery = Self.retrievalQuery(messages: priorMessages,
                                                      current: userText,
                                                      turns: settings.historyTurnsForRetrieval)
-            let chunks = await retrieveWithExpansion(baseQuery: retrievalQuery, userText: userText, project: project)
+            let chunks = await retrieveWithExpansion(baseQuery: retrievalQuery, userText: userText,
+                                                     project: project, session: sessionID)
             lastRetrieval = chunks
             if !chunks.isEmpty {
                 contextBlock = Self.buildContext(chunks)
-                citations = chunks.map {
-                    Citation(fileName: $0.fileName, filePath: $0.filePath, projectID: project.id,
-                             heading: $0.heading, snippet: String($0.text.prefix(220)), score: $0.score)
-                }
+                citations = Self.fileLevelCitations(chunks, projectID: project.id)
             }
         } else {
             lastRetrieval = []
@@ -211,6 +210,11 @@ final class ChatViewModel: ObservableObject {
             sessions[loc.s].messages[loc.m].isStreaming = false
             sessions[loc.s].messages[loc.m].tokensPerSecond = tps
             sessions[loc.s].messages[loc.m].tokenCount = tokenCount
+            // Now the answer text is final: flag which sources it actually referenced and
+            // float those to the front, so the strip highlights the files behind THIS answer.
+            let answer = sessions[loc.s].messages[loc.m].text
+            sessions[loc.s].messages[loc.m].citations =
+                Self.markAnswerCitations(sessions[loc.s].messages[loc.m].citations, answer: answer)
             sessions[loc.s].updatedAt = Date()
         }
         liveTokensPerSecond = tps
@@ -221,17 +225,18 @@ final class ChatViewModel: ObservableObject {
     ///  - `.hyde`: append a model-written hypothetical answer to the embedded query.
     ///  - `.multiQuery`: retrieve for a few paraphrases and merge (max score wins).
     /// Both are best-effort; on model failure they degrade to the plain query.
-    private func retrieveWithExpansion(baseQuery: String, userText: String, project: Project) async -> [RetrievedChunk] {
+    private func retrieveWithExpansion(baseQuery: String, userText: String,
+                                       project: Project, session: UUID?) async -> [RetrievedChunk] {
         switch settings.queryExpansion {
         case .off:
-            return await indexing.retrieve(query: baseQuery, project: project)
+            return await indexing.retrieve(query: baseQuery, project: project, session: session)
 
         case .hyde:
             let hyde = await inference.complete(
                 prompt: "Write a short, factual passage that would directly answer this question. Do not add preamble.\n\nQuestion: \(userText)",
                 system: "You draft concise passages for document retrieval.", maxTokens: 160)
             let q = hyde.map { "\(baseQuery)\n\n\($0)" } ?? baseQuery
-            return await indexing.retrieve(query: q, project: project)
+            return await indexing.retrieve(query: q, project: project, session: session)
 
         case .multiQuery:
             var queries = [baseQuery]
@@ -245,7 +250,7 @@ final class ChatViewModel: ObservableObject {
             }
             var merged: [Int64: RetrievedChunk] = [:]
             for q in queries {
-                for c in await indexing.retrieve(query: q, project: project) {
+                for c in await indexing.retrieve(query: q, project: project, session: session) {
                     if let existing = merged[c.chunkID], existing.score >= c.score { continue }
                     merged[c.chunkID] = c
                 }
@@ -253,6 +258,41 @@ final class ChatViewModel: ObservableObject {
             return Array(merged.values).sorted { $0.score > $1.score }
                 .prefix(settings.retrievalTopK).map { $0 }
         }
+    }
+
+    /// Collapse the retrieved chunks to one citation per **file** (best-scoring chunk
+    /// wins), so the "Relevant files" strip lists distinct sources — not the same note
+    /// three times. Chunks arrive in rank order, so the first seen per file is its best.
+    static func fileLevelCitations(_ chunks: [RetrievedChunk], projectID: UUID) -> [Citation] {
+        var seen = Set<String>()
+        var out: [Citation] = []
+        for c in chunks where seen.insert(c.filePath).inserted {
+            out.append(Citation(fileName: c.fileName, filePath: c.filePath, projectID: projectID,
+                                 heading: c.heading, snippet: String(c.text.prefix(220)), score: c.score))
+        }
+        return out
+    }
+
+    /// After the answer streams, flag which cited files the response actually referenced
+    /// (the model is asked to cite note titles), and float those to the front. If nothing
+    /// was referenced explicitly, the retrieval (score) order is kept.
+    static func markAnswerCitations(_ citations: [Citation], answer: String) -> [Citation] {
+        guard !citations.isEmpty, !answer.isEmpty else { return citations }
+        let haystack = answer.lowercased()
+        var marked = citations.map { c -> Citation in
+            var c = c
+            let base = (c.fileName as NSString).deletingPathExtension.lowercased()
+            let headHit = c.heading.map { $0.count >= 4 && haystack.contains($0.lowercased()) } ?? false
+            c.usedInAnswer = (base.count >= 3 && haystack.contains(base)) || headHit
+            return c
+        }
+        if marked.contains(where: { $0.usedInAnswer == true }) {
+            marked.sort { a, b in
+                let ua = (a.usedInAnswer == true), ub = (b.usedInAnswer == true)
+                return ua == ub ? a.score > b.score : ua
+            }
+        }
+        return marked
     }
 
     /// Fold the most recent prior user turns into the retrieval query so follow-ups

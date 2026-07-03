@@ -4,6 +4,20 @@ All notable changes to Aura Local are documented here. Version numbers follow th
 
 ## [Unreleased]
 
+## [4.0.0] — 2026-07-03
+
+Aura Local 4.0 is about **adaptive retrieval** — the app now maps the sources each conversation is working with, so answers are both faster and more clearly grounded.
+
+### Added
+- **Relevant files, per answer.** Every reply now surfaces the exact files behind *that* answer as a "Relevant files" strip — deduplicated to one chip per source (no more the same note three times), highest-relevance first, each click-to-open. Once the reply finishes, the files the answer actually referenced are **highlighted and floated to the front** and the strip shows how many were cited, so you can see at a glance which sources the response leaned on.
+- **Adaptive source cache — fast follow-ups, smart re-sourcing.** When a chat first pulls, say, 50 sources for a question, Aura keeps that working set in memory. A follow-up that lives inside those same sources is answered **without re-scanning the whole vault** — it's ranked straight off the cached material, so it's near-instant. Ask about something *outside* the working set and Aura automatically searches the entire vault again, finds the right files, and folds them into the chat's map. The result: quick in-topic follow-ups, without ever getting "stuck" on the first batch of sources. Tunable in the Context inspector and Settings (**Adaptive source cache** + **Reuse threshold**); the inspector shows how many sources are currently mapped for the chat.
+
+### Changed
+- **Hybrid re-rank now shows a relevance you can trust.** Under the default Hybrid (RRF) re-ranker, source chips previously displayed the raw fusion score — a tiny number that always read as "2–3%". Chips now show the **semantic similarity (0–100%)** as the relevance, while the ordering still comes from the keyword + semantic rank fusion. The number finally matches what you'd expect.
+
+### Fixed
+- **Hybrid search no longer drops strong keyword matches.** A passage that's an exact term match but a weak vector match could be filtered out by the Minimum Similarity floor *before* the keyword + semantic fusion ever saw it — quietly defeating the point of hybrid retrieval. Keyword matches are now always kept in the fusion, so a perfectly on-topic term match can't be silently discarded.
+
 ## [3.3.3] — 2026-07-03
 
 ### Fixed

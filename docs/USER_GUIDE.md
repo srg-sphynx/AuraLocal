@@ -21,13 +21,15 @@ You can replay onboarding at any time from **Settings**.
 The chat view is where you talk to your documents. Each answer is grounded in passages retrieved from your knowledge base, and the sources are shown alongside the response so you can verify where an answer came from.
 
 - **History-aware retrieval** keeps follow-up questions on topic — the last few turns are folded into the retrieval query, so "what about the second one?" still resolves correctly.
+- **Adaptive sourcing** keeps the conversation fast. When you first ask about something, Aura may pull a few dozen sources from a large vault; it remembers that working set, so a follow-up on the same material is answered near-instantly without re-searching everything. Ask about a *different* file — even one that wasn't in that first batch — and Aura automatically searches the whole vault again and brings the right sources in. See [Retrieval tuning](#retrieval-tuning) to adjust it.
 - Streaming responses render as plain text while generating and switch to full Markdown once complete, keeping the UI smooth.
 - Press **⌘↩** to send.
 
-### Opening sources
+### Relevant files & opening sources
 
-Every answer lists the sources that grounded it as chips beneath the response.
+Every answer lists the sources behind it as a **Relevant files** strip beneath the response — one chip per file, most-relevant first, with a relevance percentage.
 
+- Once the answer finishes, the files it **actually referenced** are highlighted and moved to the front, and the strip notes how many were cited — so you can tell at a glance which sources the response leaned on versus which were merely available.
 - **Click a source chip** to open that exact file in its default app — Preview for a PDF, your editor for Markdown, and so on. **Right-click** a chip for **Reveal in Finder**.
 - Open the **Context inspector** (the toggle at the top-right of the chat) to see **Sources in this chat** — every unique file cited across the whole conversation, most-relevant first. Each row opens the file on click, so you can get back to the material behind any earlier answer, not just the last one.
 
@@ -108,10 +110,11 @@ From the inspector and settings you can adjust:
 
 - **Retrieval top-K** — how many passages are returned to the model.
 - **Candidate file window** and **minimum similarity** — how candidates are gathered and filtered.
-- **Re-rank mode** — off, hybrid RRF, or LLM-judge.
+- **Re-rank mode** — off (semantic only), hybrid RRF (default; fuses keyword + semantic ranks), or LLM-judge. Source chips show the semantic relevance as a percentage; the ordering reflects the fusion.
 - **Query expansion** — off, Multi-Query, or HyDE.
 - **Parent-document expansion** — include neighboring passages for more context.
 - **ANN index** — enable the approximate index for very large collections (off by default; exact scan is the default path).
+- **Adaptive source cache** — on by default. Keeps a per-chat map of the sources already retrieved so in-topic follow-ups skip a full vault re-scan. The **Reuse threshold** controls how close a follow-up must be to the cached sources before Aura reuses them: raise it to re-search more often (fresher, thorough), lower it to reuse more aggressively (faster). Questions about new material always search the whole vault regardless.
 
 ## Appearance and theming
 

@@ -72,15 +72,21 @@ Persistence lives in `Services/Persistence/AppDatabase.swift`, an SQLite databas
 
 ## Retrieval
 
-Retrieval is orchestrated by `IndexingService.retrieve` and is configurable from the inspector and settings.
+Retrieval is orchestrated by `IndexingService.retrieve(query:project:session:)` and is configurable from the inspector and settings.
 
-1. **Candidate generation** — a hybrid union of BM25 keyword candidates and pure-semantic top-K candidates. The semantic scan runs off the main thread.
-2. **Re-ranking** — Reciprocal Rank Fusion (RRF) fuses the keyword and semantic rankings. The mode is selectable (`off` / `hybridRRF` / `llmJudge`); an optional LLM-judge rerank is available.
-3. **Parent-document expansion** — when enabled, adjacent-ordinal chunks are merged in (`AppDatabase.neighborChunks`) so the model sees surrounding context, not just an isolated snippet.
-4. **Filtering** — a minimum-similarity threshold and a final top-K cut (`retrievalTopK`) trim the result set.
-5. **Query expansion** — optionally rewrite the query before retrieval (`off` / `multiQuery` / `hyde`) via a one-shot completion helper.
+1. **Query embed** — the query is embedded up front (bounded by a timeout so a cold embed server degrades to keyword search rather than hanging). This is the only embedding done at query time; chunks are embedded up-front.
+2. **Adaptive fast path** — if the chat's working set (see below) already covers the query, the result is ranked straight off the in-memory cached chunks and the store-wide scan is skipped.
+3. **Candidate generation** — otherwise, a hybrid union of BM25 keyword candidates and pure-semantic top-K candidates. The semantic scan runs off the main thread.
+4. **Re-ranking** — Reciprocal Rank Fusion (RRF) fuses the keyword and semantic rankings. The mode is selectable (`off` / `hybridRRF` / `llmJudge`); an optional LLM-judge rerank is available. Strong keyword matches are kept in the fusion even when they fall below the minimum-similarity floor, so an exact term match the embedder misses isn't discarded. The relevance surfaced on source chips is the semantic cosine (0–100%); the *order* is the fusion.
+5. **Parent-document expansion** — when enabled, adjacent-ordinal chunks are merged in (`AppDatabase.neighborChunks`) so the model sees surrounding context, not just an isolated snippet.
+6. **Filtering** — a minimum-similarity threshold and a final top-K cut (`retrievalTopK`) trim the result set.
+7. **Query expansion** — optionally rewrite the query before retrieval (`off` / `multiQuery` / `hyde`) via a one-shot completion helper.
 
 **History-aware retrieval.** `ChatViewModel` folds the last few user turns into the retrieval query so follow-up questions keep their referent.
+
+### Adaptive source cache (per-chat working set)
+
+`Services/RAG/SessionSourceCache.swift` holds, per chat session, the candidate pool from prior turns — the `EmbeddedChunk`s *with their vectors* — bounded to a fixed capacity (weakest-relevance eviction, recency tie-break). On each query, after embedding it, `IndexingService` scores the query against this cached set in memory (sub-millisecond for a few hundred vectors). If coverage is strong (a couple of hits above the reuse threshold, or one very strong hit), it ranks from the cache and **skips the O(N) store-wide cosine scan** — the fast path for in-topic follow-ups. Keyword signal (`bm25`) is still fetched fresh (a cheap FTS lookup), so the fast path remains a proper hybrid. When coverage is weak the full scan runs and its candidate pool is *merged* back into the working set, so the cache tracks wherever the conversation ranges — it only ever adds speed, never caps recall. The cache is reset when a chat is deleted, when its vault is re-indexed (chunk IDs/content may change), or when the vector store is cleared. Controlled by `adaptiveSourceCache` and `adaptiveReuseThreshold`.
 
 ### Approximate-nearest-neighbor index (optional)
 

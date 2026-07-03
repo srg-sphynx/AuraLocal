@@ -84,9 +84,17 @@ struct MessageBubble: View {
 
 struct CitationStrip: View {
     let citations: [Citation]
+    private var citedCount: Int { citations.filter { $0.usedInAnswer == true }.count }
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            MicroLabel(text: "Sources · \(citations.count)")
+            HStack(spacing: 6) {
+                MicroLabel(text: "Relevant files · \(citations.count)")
+                if citedCount > 0 {
+                    Label("\(citedCount) cited", systemImage: "quote.opening")
+                        .font(Theme.Font.micro().weight(.semibold))
+                        .foregroundStyle(Theme.Palette.primary)
+                }
+            }
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(citations) { c in CitationCard(citation: c) }
@@ -104,11 +112,13 @@ struct CitationCard: View {
     @State private var hover = false
 
     private var project: Project? { projects.project(id: citation.projectID) }
+    /// The answer explicitly referenced this file — give it a persistent accent.
+    private var isCited: Bool { citation.usedInAnswer == true }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 5) {
-                Image(systemName: SourceIcon.symbol(for: citation.fileName))
+                Image(systemName: isCited ? "quote.opening" : SourceIcon.symbol(for: citation.fileName))
                     .font(.system(size: 10)).foregroundStyle(Theme.Palette.primary)
                 Text(citation.fileName).font(Theme.Font.bodySm().weight(.semibold))
                     .foregroundStyle(Theme.Palette.onSurface).lineLimit(1)
@@ -133,10 +143,12 @@ struct CitationCard: View {
         }
         .padding(9)
         .frame(width: 220, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: Theme.Radius.md).fill(Theme.Palette.fieldFill))
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.md)
+            .fill(isCited ? Theme.Palette.primary.opacity(0.10) : Theme.Palette.fieldFill))
         .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md)
-            .strokeBorder(hover ? Theme.Palette.primary.opacity(0.55) : Theme.glassBorderSoft,
-                          lineWidth: hover ? 1 : 0.5))
+            .strokeBorder(hover || isCited ? Theme.Palette.primary.opacity(hover ? 0.55 : 0.4)
+                                           : Theme.glassBorderSoft,
+                          lineWidth: hover || isCited ? 1 : 0.5))
         .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
         .onTapGesture {
             SourceOpener.open(project: project, relativePath: citation.filePath, fileName: citation.fileName)
