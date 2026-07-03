@@ -90,9 +90,9 @@ final class ProjectStore: ObservableObject {
         projects.removeAll { $0.id == project.id }
         if selectedProjectID == project.id { selectedProjectID = projects.first?.id }
         save()
-        Task { @MainActor in
-            indexingService?.indexedFiles[project.id] = nil
-        }
+        // Erase the vault's stored vectors/FTS/ANN + cached sources and reclaim the space
+        // (removing a vault used to leave all its embeddings orphaned in the store).
+        indexingService?.purgeProject(project.id)
     }
 
     /// Remove every vault (watchers + registrations). Used by the reset flow. The

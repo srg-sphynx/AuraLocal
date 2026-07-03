@@ -97,12 +97,14 @@ The Diagnostics view is a filterable log console plus a per-file Issues list. If
 
 ![Settings — models](screenshots/settings-models.png)
 
-Settings covers providers and models, retrieval tuning, appearance, onboarding replay, and a **Danger Zone**:
+Settings covers providers and models, retrieval tuning, appearance, onboarding replay, an **On-Disk Footprint** panel, and a **Danger Zone**.
+
+**On-Disk Footprint** shows exactly what Aura keeps on disk — vector index, fast-search cache, chats, and settings — with a running total. Everything lives in a single folder; nothing is scattered across your system, and no scratch files are left behind by document parsing. **Reclaim disk space** compacts the store and reports how much it freed; it's non-destructive (all vectors and chats are kept). Removing a vault erases its vectors automatically, and deleting a chat frees its cached sources.
+
+The **Danger Zone** offers two destructive, confirmation-gated actions:
 
 - **Clear index and chats** — wipes the database, chats, and vault list but keeps your settings.
-- **Factory reset** — additionally erases all data files and resets settings to defaults.
-
-Both destructive actions require confirmation.
+- **Factory reset** — additionally erases all data files and resets settings to defaults, leaving nothing behind.
 
 ### Retrieval tuning
 

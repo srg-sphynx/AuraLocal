@@ -67,6 +67,35 @@ final class IndexingService: ObservableObject {
     /// Sources currently cached for a chat (diagnostics / inspector).
     func cachedSourceCount(session: UUID) -> Int { sessionCache.count(session: session) }
 
+    /// Fully erase a removed vault's footprint: its chunks/FTS/file rows, its ANN
+    /// sidecar, and any cached working sets that referenced it — then reclaim the freed
+    /// pages. Without this, a deleted vault's vectors linger in the store forever. The DB
+    /// work runs off-main so removing a big vault never stalls the UI.
+    func purgeProject(_ projectID: UUID) {
+        indexedFiles[projectID] = nil
+        if let idx = vectorIndexes[projectID] { idx.delete(); vectorIndexes[projectID] = nil }
+        sessionCache.resetAll()
+        let db = database
+        Task.detached(priority: .utility) {
+            try? db.deleteProject(projectID)
+            db.compact()
+        }
+    }
+
+    /// Reclaim disk space left by deletions (WAL checkpoint + VACUUM). Non-destructive —
+    /// keeps every vector and chat; only frees pages the store no longer uses. Runs
+    /// off-main and reports how many bytes were freed.
+    func reclaimDiskSpace(_ done: @escaping @MainActor (Int64) -> Void) {
+        let db = database
+        let url = settingsStore.databaseURL
+        Task.detached(priority: .utility) {
+            let before = StorageInfo.dbFamilySize(url)
+            db.compact()
+            let after = StorageInfo.dbFamilySize(url)
+            await MainActor.run { done(max(0, before - after)) }
+        }
+    }
+
     init(database: AppDatabase, settingsStore: SettingsStore, inference: InferenceManager) {
         self.database = database
         self.settingsStore = settingsStore

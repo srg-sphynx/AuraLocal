@@ -575,6 +575,16 @@ final class AppDatabase: @unchecked Sendable {
         }
     }
 
+    /// Reclaim disk space left behind by deletions: checkpoint the WAL back into the main
+    /// file, then VACUUM to release free pages (SQLite never shrinks a file on its own).
+    /// O(database size), so call it after bulk removals — not on every small delete.
+    func compact() {
+        queue.sync {
+            try? _exec("PRAGMA wal_checkpoint(TRUNCATE);")
+            try? _exec("VACUUM;")
+        }
+    }
+
     /// Chunks lacking a vector for `model` — drives the full-mode embedding pass.
     func chunksNeedingEmbedding(projectID: UUID, model: String, limit: Int) -> [(id: Int64, text: String)] {
         queue.sync {

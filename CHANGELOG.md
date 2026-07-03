@@ -4,6 +4,21 @@ All notable changes to Aura Local are documented here. Version numbers follow th
 
 ## [Unreleased]
 
+## [4.0.1] — 2026-07-03
+
+A storage-hygiene release: Aura now cleans up after itself and shows you exactly what it keeps on disk.
+
+### Fixed
+- **Removing a vault now reclaims its space.** Previously, deleting a vault forgot it from the list but left *all of its embeddings and keyword index behind* in the store — orphaned data that quietly took up disk forever. Removing a vault now erases its vectors, keyword rows, and fast-search sidecar, then compacts the database to give the space back. (The heavy work runs in the background, so removing a large vault doesn't freeze the app.)
+- **Deleting a chat frees everything tied to it.** A deleted conversation now also drops its cached "working set" of sources from memory, so nothing lingers.
+
+### Added
+- **On-Disk Footprint (Settings).** A new panel shows precisely what Aura stores and where — vector index, fast-search cache, chats, settings — with a running total. Everything lives in a single folder; nothing is scattered across your system.
+- **Reclaim disk space.** One button compacts the store and reports how much it freed. It's non-destructive — every vector and chat is kept; it only releases space left over from deletions.
+
+### Notes
+- Aura writes nothing outside its own data folder apart from the initial vault index and its regenerable speed caches. Documents are parsed in memory (no temp files extracted to disk), and logs stay in memory. Factory reset now leaves nothing behind.
+
 ## [4.0.0] — 2026-07-03
 
 Aura Local 4.0 is about **adaptive retrieval** — the app now maps the sources each conversation is working with, so answers are both faster and more clearly grounded.

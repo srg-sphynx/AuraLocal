@@ -4,6 +4,7 @@ struct SettingsView: View {
     @EnvironmentObject var settingsStore: SettingsStore
     @EnvironmentObject var inference: InferenceManager
     @EnvironmentObject var env: AppEnvironment
+    @EnvironmentObject var indexing: IndexingService
     @EnvironmentObject var updater: UpdaterService
     @EnvironmentObject var theme: ThemeManager   // re-render in place on theme change
 
@@ -11,6 +12,9 @@ struct SettingsView: View {
     @State private var showResetConfirm = false
     @State private var autoUpdate = true
     @State private var showWhatsNew = false
+    @State private var storage: StorageInfo.Report?
+    @State private var reclaiming = false
+    @State private var reclaimNote: String?
 
     private var s: Binding<AppSettings> { $settingsStore.settings }
 
@@ -26,6 +30,7 @@ struct SettingsView: View {
                 ragSection
                 AppearanceSettingsView()
                 storageSection
+                storageFootprintSection
                 onboardingSection
                 updatesSection
                 dangerZone
@@ -36,6 +41,7 @@ struct SettingsView: View {
         }
         .glassPane()
         .sheet(isPresented: $showWhatsNew) { WhatsNewView() }
+        .task { await refreshStorage() }
     }
 
     // MARK: Connections
@@ -187,6 +193,75 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: On-disk footprint & maintenance
+
+    private var storageFootprintSection: some View {
+        SettingsCard(title: "On-Disk Footprint", symbol: "internaldrive") {
+            if let r = storage {
+                storageRow("Vector index", r.index, "Embeddings + keyword index for your vaults.")
+                storageRow("Fast-search cache", r.fastCache, "Approximate-index sidecars. Regenerated automatically when needed.")
+                storageRow("Chats", r.chats, "Your saved conversations.")
+                storageRow("Settings & vaults", r.meta, "Preferences and vault registrations.")
+                if r.other > 0 { storageRow("Other", r.other, "Anything else under Aura's data folder.") }
+                Divider().overlay(Theme.glassBorderSoft)
+                HStack {
+                    Text("Total on disk").font(Theme.Font.body().weight(.semibold))
+                        .foregroundStyle(Theme.Palette.onSurface)
+                    Spacer()
+                    Text(StorageInfo.humanized(r.total)).font(Theme.Font.body().weight(.semibold).monospacedDigit())
+                        .foregroundStyle(Theme.Palette.onSurface)
+                }
+            } else {
+                Text("Measuring…").font(Theme.Font.bodySm()).foregroundStyle(Theme.Palette.outline)
+            }
+            Text("Everything Aura stores lives in one folder — nothing is scattered elsewhere. Removing a vault erases its vectors automatically; deleting a chat frees its cached sources. Use Reclaim to compact free space left by deletions.")
+                .font(Theme.Font.bodySm()).foregroundStyle(Theme.Palette.onSurfaceVariant)
+            HStack(spacing: 10) {
+                Button { Task { await reclaim() } } label: {
+                    Label(reclaiming ? "Reclaiming…" : "Reclaim disk space", systemImage: "arrow.down.circle")
+                        .font(Theme.Font.bodySm())
+                }.buttonStyle(GhostGlassButtonStyle()).disabled(reclaiming)
+                Button { revealDB() } label: {
+                    Label("Show data folder", systemImage: "folder").font(Theme.Font.bodySm())
+                }.buttonStyle(GhostGlassButtonStyle())
+                if let note = reclaimNote {
+                    Text(note).font(Theme.Font.bodySm()).foregroundStyle(Theme.Palette.success)
+                }
+                Spacer()
+            }
+        }
+    }
+
+    private func storageRow(_ title: String, _ bytes: Int64, _ detail: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(Theme.Font.bodySm().weight(.medium)).foregroundStyle(Theme.Palette.onSurfaceVariant)
+                Text(detail).font(Theme.Font.micro()).foregroundStyle(Theme.Palette.outline)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            Text(StorageInfo.humanized(bytes)).font(Theme.Font.bodySm().monospacedDigit())
+                .foregroundStyle(Theme.Palette.onSurface)
+        }
+    }
+
+    @MainActor private func refreshStorage() async {
+        let url = settingsStore.databaseURL
+        let report = await Task.detached(priority: .utility) { StorageInfo.snapshot(databaseURL: url) }.value
+        storage = report
+    }
+
+    @MainActor private func reclaim() async {
+        guard !reclaiming else { return }
+        reclaiming = true; reclaimNote = nil
+        let freed: Int64 = await withCheckedContinuation { cont in
+            indexing.reclaimDiskSpace { bytes in cont.resume(returning: bytes) }
+        }
+        await refreshStorage()
+        reclaiming = false
+        reclaimNote = freed > 0 ? "Freed \(StorageInfo.humanized(freed))" : "Already compact"
+    }
+
     // MARK: Software updates
 
     private var updatesSection: some View {
@@ -247,13 +322,13 @@ struct SettingsView: View {
                       button: "Delete All", destructiveTitle: true) { showResetConfirm = true }
         }
         .confirmationDialog("Clear the index and all chats?", isPresented: $showClearConfirm, titleVisibility: .visible) {
-            Button("Clear index & chats", role: .destructive) { env.clearIndexAndChats() }
+            Button("Clear index & chats", role: .destructive) { env.clearIndexAndChats(); Task { await refreshStorage() } }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Removes all vectors, indexed files, vaults, and chat history. Your settings are kept. This can't be undone.")
         }
         .confirmationDialog("Delete ALL Aura data?", isPresented: $showResetConfirm, titleVisibility: .visible) {
-            Button("Delete everything", role: .destructive) { env.factoryReset() }
+            Button("Delete everything", role: .destructive) { env.factoryReset(); Task { await refreshStorage() } }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Erases the index, chats, vaults, and all settings/themes. The app returns to first-launch state. This can't be undone.")

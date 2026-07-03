@@ -70,6 +70,8 @@ Persistence lives in `Services/Persistence/AppDatabase.swift`, an SQLite databas
 - **Performance PRAGMAs**: enlarged cache, memory-mapped I/O, and in-memory temp store.
 - A streaming cosine scan (`semanticTopK`) computes similarity in O(k) memory rather than materializing all vectors.
 
+**Storage hygiene.** Everything Aura writes lives under one Application Support directory (or a user-chosen vector-store path): the SQLite store, per-project ANN sidecars (`ann/`), and small JSON state (`sessions.json`, `projects.json`, `settings.json`). Documents are parsed from ZIP/PDF entries **in memory** (no temp extraction to disk) and logs are an in-memory ring buffer, so no scratch files accumulate. Removing a vault calls `IndexingService.purgeProject` → `AppDatabase.deleteProject` (drops its chunks/FTS/file rows) + deletes its ANN sidecar + `compact()` (WAL checkpoint + `VACUUM`) to reclaim the freed pages, since SQLite never shrinks a file on its own. `StorageInfo` snapshots the footprint for the Settings **On-Disk Footprint** panel; **Reclaim disk space** runs a non-destructive `compact()`. `factoryReset` additionally removes the ANN directory so nothing is left behind.
+
 ## Retrieval
 
 Retrieval is orchestrated by `IndexingService.retrieve(query:project:session:)` and is configurable from the inspector and settings.

@@ -104,6 +104,8 @@ final class AppEnvironment: ObservableObject {
     func factoryReset() {
         clearIndexAndChats()
         for url in AppPaths.allDataFiles { try? FileManager.default.removeItem(at: url) }
+        // Leave nothing behind: drop the (now-empty) ANN sidecar directory too.
+        try? FileManager.default.removeItem(at: AppPaths.annDir)
         settingsStore.settings = AppSettings()   // debounced save re-seeds defaults
     }
 
