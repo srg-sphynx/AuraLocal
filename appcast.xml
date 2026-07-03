@@ -3,6 +3,15 @@
     <channel>
         <title>Aura Local</title>
         <item>
+            <title>3.3.2</title>
+            <pubDate>Fri, 03 Jul 2026 09:48:50 +0530</pubDate>
+            <sparkle:version>3.3.2</sparkle:version>
+            <sparkle:shortVersionString>3.3.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <enclosure url="https://github.com/srg-sphynx/AuraLocal/releases/download/v3.3.2/AuraLocal-v3.3.2.dmg" length="5987018" type="application/octet-stream" sparkle:edSignature="zh4PrS68UVKajC99NxqIpvmM52jg0E+m2fy1/hANVQAyCNZLEfBVK/NgD7+sNHewKnLmczrNmq6ViXH3cbFSAg=="/>
+        </item>
+        <item>
             <title>3.3.1</title>
             <pubDate>Fri, 03 Jul 2026 09:31:12 +0530</pubDate>
             <sparkle:version>3.3.1</sparkle:version>
@@ -19,15 +28,6 @@
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <enclosure url="https://github.com/srg-sphynx/AuraLocal/releases/download/v3.3.0/AuraLocal-v3.3.0.dmg" length="5932713" type="application/octet-stream" sparkle:edSignature="7TJdkIl7UQZGmsCcTZ2/PViZiL1F21i/G0vFhnM2j3OYiqwYhNs2LThE7ph+hirsvWt8lzKeNugwpn6MYC9XBA=="/>
-        </item>
-        <item>
-            <title>3.2.0</title>
-            <pubDate>Thu, 02 Jul 2026 21:29:24 +0530</pubDate>
-            <sparkle:version>3.2.0</sparkle:version>
-            <sparkle:shortVersionString>3.2.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://github.com/srg-sphynx/AuraLocal/releases/download/v3.2.0/AuraLocal-v3.2.0.dmg" length="5921060" type="application/octet-stream" sparkle:edSignature="cKnEB4uubckEif0Br9351LnPO2P0/pYwdZyecH0qIQnxu4hOLKzcCvl2QjJccxgqNfPbOG3dz+AI5ulAT4btDQ=="/>
         </item>
     </channel>
 </rss>
