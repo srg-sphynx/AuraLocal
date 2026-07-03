@@ -4,6 +4,16 @@ All notable changes to Aura Local are documented here. Version numbers follow th
 
 ## [Unreleased]
 
+## [3.3.3] — 2026-07-03
+
+### Fixed
+- **The first message after indexing a new vault no longer appears to do nothing.** Previously, the assistant reply bubble was only created *after* retrieval finished. On the very first query against a freshly-indexed vault — when the embedding model is still cold or busy finishing the bulk embedding pass — that retrieval was slow, so the message looked like it was silently dropped (it worked on the second try once the model had warmed up). Aura now shows the **"Thinking…"** reply bubble the instant you hit send, before retrieval starts, so there's always immediate feedback.
+- **Retrieval can no longer stall the whole answer.** The query embedding is now bounded by a timeout — if the embedding server is cold or saturated and doesn't respond in time, retrieval degrades gracefully to keyword search instead of hanging.
+- **Streamed replies always land in the right conversation.** Starting a new chat while a reply was still generating could send tokens into the wrong session (new chats are inserted at the top, which shifted the position the stream was writing to). The stream now targets the reply by identity, so it can't cross wires.
+
+### Changed
+- **Clearer retrieval controls.** The Context inspector and Settings now label the two most-asked-about knobs plainly: **"Max Sources (Top-K)"** — the most passages fed to the model per answer — and **"Smart Scan Window"** — how many top keyword-matching files are pulled in as candidates before ranking. Both now carry a one-line explanation of what they do and the speed/recall trade-off.
+
 ## [3.3.2] — 2026-07-03
 
 ### Fixed

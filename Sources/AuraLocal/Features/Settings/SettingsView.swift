@@ -122,8 +122,8 @@ struct SettingsView: View {
             Toggle("Parent-document expansion (include neighboring chunks)", isOn: s.parentExpansion)
                 .toggleStyle(.switch).tint(Theme.Palette.primaryVivid).font(Theme.Font.body())
 
-            intField("Retrieval Top-K (chunks in context)", value: s.retrievalTopK, range: 1...100, step: 1)
-            intField("Keyword candidate files / query", value: s.candidateFileWindow, range: 5...200, step: 5)
+            intField("Max sources per answer (Top-K)", value: s.retrievalTopK, range: 1...100, step: 1)
+            intField("Smart Scan window (keyword candidate files)", value: s.candidateFileWindow, range: 5...200, step: 5)
             intField("Semantic candidates / query", value: s.semanticCandidateCount, range: 20...1000, step: 20)
             intField("History turns folded into retrieval", value: s.historyTurnsForRetrieval, range: 0...6, step: 1)
             sliderField("Minimum Similarity", value: s.minSimilarity, range: 0...1, step: 0.01, fmt: "%.2f")

@@ -39,6 +39,18 @@ final class ChatViewModel: ObservableObject {
     private var currentIndex: Int? {
         sessions.firstIndex { $0.id == currentSessionID }
     }
+    private func index(of sessionID: UUID) -> Int? {
+        sessions.firstIndex { $0.id == sessionID }
+    }
+    /// Re-resolve a specific message inside a specific session. Indices are looked up
+    /// fresh on every write because starting a new chat inserts at index 0 and shifts
+    /// every session's position — a captured index would otherwise stream tokens into
+    /// the wrong conversation.
+    private func locate(_ sessionID: UUID, _ messageID: UUID) -> (s: Int, m: Int)? {
+        guard let s = sessions.firstIndex(where: { $0.id == sessionID }),
+              let m = sessions[s].messages.firstIndex(where: { $0.id == messageID }) else { return nil }
+        return (s, m)
+    }
 
     // MARK: - Session management
 
@@ -70,7 +82,8 @@ final class ChatViewModel: ObservableObject {
 
     func send() {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !isGenerating, let idx = currentIndex else { return }
+        guard !text.isEmpty, !isGenerating,
+              let sessionID = currentSessionID, let idx = index(of: sessionID) else { return }
         draft = ""
 
         sessions[idx].messages.append(ChatMessage(role: .user, text: text))
@@ -79,21 +92,33 @@ final class ChatViewModel: ObservableObject {
         }
         sessions[idx].updatedAt = Date()
 
-        streamTask = Task { await runCompletion(userText: text) }
+        streamTask = Task { await runCompletion(sessionID: sessionID, userText: text) }
     }
 
-    private func runCompletion(userText: String) async {
-        guard let idx = currentIndex else { return }
+    private func runCompletion(sessionID: UUID, userText: String) async {
+        guard let turnIdx = index(of: sessionID) else { return }
         isGenerating = true
         liveTokensPerSecond = 0
         defer { isGenerating = false }
 
-        // 1. Retrieval (RAG)
+        // 1. Assistant placeholder appears IMMEDIATELY — before retrieval — so a slow
+        //    first query (a cold or bulk-saturated embed server right after indexing a
+        //    new vault) shows a "Thinking…" bubble instead of looking like the message
+        //    did nothing. `priorMessages` is captured before the placeholder so it never
+        //    leaks the empty assistant turn into the model prompt or the retrieval query.
+        let priorMessages = sessions[turnIdx].messages.filter { $0.role != .system }
+        let assistant = ChatMessage(role: .assistant, text: "",
+                                    modelName: settings.activeChatModel, isStreaming: true)
+        let assistantID = assistant.id
+        sessions[turnIdx].messages.append(assistant)
+
+        // 2. Retrieval (RAG). The query embed is bounded (see IndexingService) so a
+        //    stalled embed server degrades to keyword search rather than hanging.
         var citations: [Citation] = []
         var contextBlock = ""
         if ragEnabled, let project = projects.selectedProject {
             lastRetrievalQuery = userText
-            let retrievalQuery = Self.retrievalQuery(messages: sessions[idx].messages,
+            let retrievalQuery = Self.retrievalQuery(messages: priorMessages,
                                                      current: userText,
                                                      turns: settings.historyTurnsForRetrieval)
             let chunks = await retrieveWithExpansion(baseQuery: retrievalQuery, userText: userText, project: project)
@@ -108,9 +133,13 @@ final class ChatViewModel: ObservableObject {
         } else {
             lastRetrieval = []
         }
+        if let loc = locate(sessionID, assistantID) {
+            sessions[loc.s].messages[loc.m].citations = citations
+        }
 
-        // 2. Compose message history (+ context preamble on the latest user turn)
-        var history = sessions[idx].messages.filter { $0.role != .system }
+        // 3. Compose message history (+ context preamble on the latest user turn). Built
+        //    from `priorMessages`, so the streaming assistant placeholder is excluded.
+        var history = priorMessages
         if !contextBlock.isEmpty, let lastUser = history.lastIndex(where: { $0.role == .user }) {
             history[lastUser].text = """
             Use the following context from my vault to answer. Cite note titles in brackets.
@@ -123,12 +152,6 @@ final class ChatViewModel: ObservableObject {
             """
         }
 
-        // 3. Assistant placeholder
-        let assistant = ChatMessage(role: .assistant, text: "", citations: citations,
-                                    modelName: settings.activeChatModel, isStreaming: true)
-        sessions[idx].messages.append(assistant)
-        let assistantPos = sessions[idx].messages.count - 1
-
         // 4. Stream
         let provider = inference.activeProvider
         let config = GenerationConfig(model: settings.activeChatModel,
@@ -139,8 +162,10 @@ final class ChatViewModel: ObservableObject {
                                       maxTokens: settings.maxTokens)
 
         guard !settings.activeChatModel.isEmpty else {
-            sessions[idx].messages[assistantPos].text = "⚠️ No model selected. Open **Model Zoo** or **Settings** to choose a local model."
-            sessions[idx].messages[assistantPos].isStreaming = false
+            if let loc = locate(sessionID, assistantID) {
+                sessions[loc.s].messages[loc.m].text = "⚠️ No model selected. Open **Model Zoo** or **Settings** to choose a local model."
+                sessions[loc.s].messages[loc.m].isStreaming = false
+            }
             save(); return
         }
 
@@ -153,7 +178,9 @@ final class ChatViewModel: ObservableObject {
             for try await token in provider.streamChat(messages: history, config: config) {
                 if Task.isCancelled { break }
                 if !token.text.isEmpty {
-                    sessions[idx].messages[assistantPos].text += token.text
+                    if let loc = locate(sessionID, assistantID) {
+                        sessions[loc.s].messages[loc.m].text += token.text
+                    }
                     charCount += token.text.count
                     let elapsed = Date().timeIntervalSince(start)
                     if elapsed > 0.2 {
@@ -165,7 +192,9 @@ final class ChatViewModel: ObservableObject {
                 if token.done { break }
             }
         } catch {
-            sessions[idx].messages[assistantPos].text += "\n\n⚠️ \(error.localizedDescription)"
+            if let loc = locate(sessionID, assistantID) {
+                sessions[loc.s].messages[loc.m].text += "\n\n⚠️ \(error.localizedDescription)"
+            }
         }
 
         // 5. Finalize stats
@@ -178,12 +207,13 @@ final class ChatViewModel: ObservableObject {
         } else if let ec = finalEvalCount {
             tokenCount = ec
         }
-        sessions[idx].messages[assistantPos].isStreaming = false
-        sessions[idx].messages[assistantPos].tokensPerSecond = tps
-        sessions[idx].messages[assistantPos].tokenCount = tokenCount
-        sessions[idx].updatedAt = Date()
+        if let loc = locate(sessionID, assistantID) {
+            sessions[loc.s].messages[loc.m].isStreaming = false
+            sessions[loc.s].messages[loc.m].tokensPerSecond = tps
+            sessions[loc.s].messages[loc.m].tokenCount = tokenCount
+            sessions[loc.s].updatedAt = Date()
+        }
         liveTokensPerSecond = tps
-        _ = assistant
         save()
     }
 

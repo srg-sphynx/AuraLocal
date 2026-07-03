@@ -36,6 +36,11 @@ final class IndexingService: ObservableObject {
     private var vectorIndexes: [UUID: VectorIndex] = [:]
     /// Below this many embedded chunks the exact cosine scan is fast enough — skip ANN.
     private static let annMinChunks = 2000
+    /// Cap (seconds) on a single query embed before retrieval degrades to keyword
+    /// search. Guards the first query against a freshly-indexed vault, when the embed
+    /// server may be cold or still saturated by the bulk embedding pass — without this
+    /// a stalled request would leave the whole answer hanging with no visible output.
+    private static let queryEmbedTimeout: Double = 20
 
     func annIndex(for projectID: UUID) -> VectorIndex {
         if let idx = vectorIndexes[projectID] { return idx }
@@ -433,7 +438,9 @@ final class IndexingService: ObservableObject {
         //    with, and it no longer re-embeds anything at query time.
         if inference.embeddingReady, !settings.embeddingModel.isEmpty {
             let provider = ProviderFactory.make(settings.embeddingProvider, settings: settings)
-            if let qv = try? await provider.embed(texts: [query], model: settings.embeddingModel).first, !qv.isEmpty {
+            let qv = await Self.embedQuery(provider: provider, query: query,
+                                           model: settings.embeddingModel, timeout: Self.queryEmbedTimeout)
+            if let qv, !qv.isEmpty {
                 // ANN plan (computed on-main from the in-memory centroids). Empty/nil ⇒
                 // exact scan. This is where the 888k-chunk O(N) jitter gets cut.
                 let annBuckets = annBucketPlan(project: project.id, queryVector: qv)
@@ -486,6 +493,23 @@ final class IndexingService: ObservableObject {
             }
             return db.semanticTopK(projectID: projectID, queryVector: queryVector, k: k)
         }.value
+    }
+
+    /// Embed a single query with a hard timeout. Returns nil if the embed fails or
+    /// doesn't return in `timeout` seconds, so retrieval falls back to keyword search
+    /// instead of stalling on a cold/busy embed server.
+    nonisolated private static func embedQuery(provider: InferenceProvider, query: String,
+                                               model: String, timeout: Double) async -> [Float]? {
+        await withTaskGroup(of: [Float]?.self) { group in
+            group.addTask { (try? await provider.embed(texts: [query], model: model))?.first }
+            group.addTask {
+                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                return nil
+            }
+            let result: [Float]? = await group.next() ?? nil
+            group.cancelAll()
+            return result
+        }
     }
 
     // MARK: - Post-processing (optional LLM re-rank + parent-document expansion)

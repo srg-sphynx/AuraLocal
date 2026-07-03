@@ -80,16 +80,18 @@ struct InspectorPanel: View {
 
     private var retrievalParams: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sliderRow(title: "Retrieval Count",
+            sliderRow(title: "Max Sources (Top-K)",
                       value: Binding(get: { Double(settingsStore.settings.retrievalTopK) },
                                      set: { settingsStore.settings.retrievalTopK = Int($0) }),
                       range: 1...50, step: 1,
-                      label: "\(settingsStore.settings.retrievalTopK)")
+                      label: "\(settingsStore.settings.retrievalTopK)",
+                      caption: "Most passages fed to the model per answer. Higher = more sources cited, more context.")
             sliderRow(title: "Smart Scan Window",
                       value: Binding(get: { Double(settingsStore.settings.candidateFileWindow) },
                                      set: { settingsStore.settings.candidateFileWindow = Int($0) }),
                       range: 5...200, step: 5,
-                      label: "\(settingsStore.settings.candidateFileWindow)")
+                      label: "\(settingsStore.settings.candidateFileWindow)",
+                      caption: "How many top keyword-matching files are pulled in as candidates before ranking. Wider = more thorough recall, slightly slower.")
             sliderRow(title: "Min Similarity",
                       value: $settingsStore.settings.minSimilarity,
                       range: 0...1, step: 0.01,
@@ -105,7 +107,7 @@ struct InspectorPanel: View {
     }
 
     private func sliderRow(title: String, value: Binding<Double>, range: ClosedRange<Double>,
-                           step: Double, label: String) -> some View {
+                           step: Double, label: String, caption: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(title).font(Theme.Font.bodySm()).foregroundStyle(Theme.Palette.onSurfaceVariant)
@@ -113,6 +115,10 @@ struct InspectorPanel: View {
                 Text(label).font(Theme.Font.bodySm().monospacedDigit()).foregroundStyle(Theme.Palette.primary)
             }
             Slider(value: value, in: range, step: step).controlSize(.mini).tint(Theme.Palette.primaryVivid)
+            if let caption {
+                Text(caption).font(Theme.Font.micro()).foregroundStyle(Theme.Palette.outline)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
