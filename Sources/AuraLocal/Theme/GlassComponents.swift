@@ -30,25 +30,31 @@ struct VisualEffectView: NSViewRepresentable {
 
 /// A floating glass pane: vibrancy material, indigo-tinted fill, 0.5pt inner
 /// stroke and a soft glow shadow. Matches `.glass-pane` in the reference.
+///
+/// Observes `ThemeManager` so the Transparency slider re-tints *every* pane live —
+/// even panes whose parent view doesn't itself observe the theme. (`tint`/`stroke`
+/// are `nil` by default = "resolve live"; pass an explicit color to override.)
 struct GlassPane: ViewModifier {
     var radius: CGFloat = Theme.Radius.lg
     var material: NSVisualEffectView.Material = .hudWindow
-    var tint: Color = Theme.paneTint
-    var stroke: Color = Theme.glassBorder
+    var tint: Color? = nil
+    var stroke: Color? = nil
     var glow: Bool = false
+    @ObservedObject private var themeManager = ThemeManager.shared
 
     func body(content: Content) -> some View {
-        content
+        _ = themeManager.revision  // re-run body on any theme change (incl. transparency)
+        return content
             .background {
                 ZStack {
                     VisualEffectView(material: material)
-                    tint
+                    tint ?? Theme.paneTint
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .strokeBorder(stroke, lineWidth: 0.5)
+                    .strokeBorder(stroke ?? Theme.glassBorder, lineWidth: 0.5)
             }
             .shadow(color: .black.opacity(glow ? 0.35 : 0.18),
                     radius: glow ? 28 : 14, x: 0, y: glow ? 0 : 4)
@@ -58,8 +64,8 @@ struct GlassPane: ViewModifier {
 extension View {
     func glassPane(radius: CGFloat = Theme.Radius.lg,
                    material: NSVisualEffectView.Material = .hudWindow,
-                   tint: Color = Theme.paneTint,
-                   stroke: Color = Theme.glassBorder,
+                   tint: Color? = nil,
+                   stroke: Color? = nil,
                    glow: Bool = false) -> some View {
         modifier(GlassPane(radius: radius, material: material, tint: tint, stroke: stroke, glow: glow))
     }

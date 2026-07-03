@@ -4,6 +4,18 @@ All notable changes to Aura Local are documented here. Version numbers follow th
 
 ## [Unreleased]
 
+## [3.3.0] — 2026-07-03
+
+### Added
+- **Open sources straight from the chat.** Every source chip under an answer is now clickable — click it to open the exact file that grounded the response in its default app (Preview for PDFs, your editor for Markdown, etc.). Right-click for **Reveal in Finder**.
+- **“Sources in this chat” panel.** The Context inspector now lists every unique source cited across the whole conversation — highest-relevance first — so you can jump back to the material behind any earlier answer, not just the most recent turn. Each row opens the file on click. Source rows and chips show a per-format icon (PDF / doc / sheet / web / book).
+
+### Fixed
+- **Light/Dark now switches cleanly and globally.** Changing the appearance Mode (or the system flipping in *System* mode) previously left text in some sections the wrong color until you hovered over it. The theme now re-colors the whole window in one pass on any structural change, with no stale text.
+- **Mode works while a custom theme is active.** Applying a saved theme no longer locks the light/dark base — the Mode switch stays the source of truth, and a custom theme only layers its accent (and matching-base surface tweaks) on top. Applying a preset also snaps Mode to the base it was saved with.
+- **Light-mode contrast.** Accent-derived text now stays readable (WCAG AA) for *any* accent — bright emerald/amber/cyan accents were previously ~3:1 against the near-white surface. Success and warning colors were darkened in light mode for the same reason.
+- **Transparency stays smooth.** Dragging the Transparency slider re-tints every glass panel live (not just the ones on screen) without rebuilding the view tree, so scroll positions are preserved.
+
 ## [3.2.0] — 2026-07-02
 
 ### Added

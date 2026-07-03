@@ -30,6 +30,12 @@ struct RootView: View {
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
+            // Rebuild the pane tree on *structural* theme changes only (mode/accent/
+            // contrast/preset/density/text-size). This guarantees a clean global
+            // re-color — no section is left with stale text until it's hovered —
+            // while a Transparency drag (which doesn't bump appearanceRevision)
+            // re-tints live and preserves scroll positions.
+            .id(theme.appearanceRevision)
             .padding(Theme.Space.windowInset)
             // Panes run to the top of the window — the traffic lights float over the
             // sidebar header (which pads itself to clear them). No dead header band.
@@ -40,10 +46,10 @@ struct RootView: View {
                 OnboardingFlow().zIndex(10)
             }
         }
-        // NB: intentionally no `.id(theme.revision)` — that rebuilt the whole tree
-        // on every appearance tweak and reset scroll positions (Settings jumping to
-        // the top). Re-theming now flows through `ThemeManager` observation on each
-        // screen/chrome view, re-rendering in place.
+        // NB: the pane tree keys its `.id` on `theme.appearanceRevision` (structural
+        // changes only), not the old `theme.revision` (every tweak) — so a mode/accent
+        // switch does a clean global rebuild, but a Transparency drag re-tints in place
+        // and keeps scroll positions (Settings no longer jumps to the top).
         .preferredColorScheme(theme.preferredColorScheme)
         .animation(.easeInOut(duration: 0.22), value: env.inspectorVisible)
         .animation(.easeInOut(duration: 0.18), value: env.section)

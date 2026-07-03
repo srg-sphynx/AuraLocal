@@ -22,6 +22,13 @@ final class ProjectStore: ObservableObject {
         projects.first { $0.id == selectedProjectID }
     }
 
+    /// Resolve a citation's vault by id, falling back to the current selection when
+    /// the id is unknown (e.g. an older session saved before citations tracked it).
+    func project(id: UUID?) -> Project? {
+        if let id, let p = projects.first(where: { $0.id == id }) { return p }
+        return selectedProject
+    }
+
     // MARK: - Persistence
 
     private func load() {

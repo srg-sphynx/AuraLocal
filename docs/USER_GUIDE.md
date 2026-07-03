@@ -24,6 +24,15 @@ The chat view is where you talk to your documents. Each answer is grounded in pa
 - Streaming responses render as plain text while generating and switch to full Markdown once complete, keeping the UI smooth.
 - Press **⌘↩** to send.
 
+### Opening sources
+
+Every answer lists the sources that grounded it as chips beneath the response.
+
+- **Click a source chip** to open that exact file in its default app — Preview for a PDF, your editor for Markdown, and so on. **Right-click** a chip for **Reveal in Finder**.
+- Open the **Context inspector** (the toggle at the top-right of the chat) to see **Sources in this chat** — every unique file cited across the whole conversation, most-relevant first. Each row opens the file on click, so you can get back to the material behind any earlier answer, not just the last one.
+
+If a source no longer opens, the file was likely moved or renamed after it was indexed; re-index the vault to refresh its location.
+
 ## Knowledge base
 
 ![Knowledge base](screenshots/knowledge-base.png)
@@ -113,11 +122,13 @@ From the inspector and settings you can adjust:
 Aura Local ships a full theming engine:
 
 - Light, dark, or system-following themes
-- Accent color
+- Accent color — any accent stays readable (the app keeps accent-derived text at WCAG AA against the background), so bright accents don't wash out in light mode
 - High-contrast mode
 - Density control
-- **Glass transparency** slider for the translucent panes
+- **Glass transparency** slider for the translucent panes — drag it and the whole window re-tints live, without losing your place
 - Custom presets you can save and switch between
+
+**Mode** (Light / Dark / System) always controls the light/dark base. A custom preset layers its accent on top and, when you apply it, snaps the Mode to the base it was saved with — so you can keep switching Light/Dark afterward. Switching Mode re-colors the entire window at once.
 
 Text size follows your macOS system text-size setting automatically and updates when you change it.
 

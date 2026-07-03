@@ -17,9 +17,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>3.2.0</string>
+	<string>3.3.0</string>
 	<key>CFBundleVersion</key>
-	<string>3.2.0</string>
+	<string>3.3.0</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.developer-tools</string>
 	<key>LSMinimumSystemVersion</key>
@@ -36,25 +36,15 @@
 	<true/>
 	<key>NSSupportsSuddenTermination</key>
 	<true/>
-	<!-- ▼ Sparkle auto-update configuration ▼ -->
-	<!-- Appcast the app polls for new versions. Host this file anywhere static
-	     (GitHub Pages, S3, any web server). See docs/UPDATES.md. -->
-	<key>SUFeedURL</key>
-	<string>https://srg-sphynx.github.io/AuraLocal/appcast.xml</string>
-	<!-- EdDSA (ed25519) PUBLIC key. Generated with Sparkle's `generate_keys`;
-	     the matching private key lives in the srg-sphynx login Keychain and is
-	     used to sign each appcast. Updates whose signature doesn't match this key
-	     are rejected. -->
-	<key>SUPublicEDKey</key>
-	<string>Ss7+OduyDAmX5d6ShXvV1kHGGy1iWSMQLxwms1SOGD8=</string>
-	<!-- Check for updates automatically in the background. -->
-	<key>SUEnableAutomaticChecks</key>
-	<true/>
-	<!-- Seconds between background checks (86400 = once per day). -->
-	<key>SUScheduledCheckInterval</key>
-	<integer>86400</integer>
-	<!-- Ask before installing rather than updating silently. -->
 	<key>SUAutomaticallyUpdate</key>
 	<false/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://srg-sphynx.github.io/AuraLocal/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>Ss7+OduyDAmX5d6ShXvV1kHGGy1iWSMQLxwms1SOGD8=</string>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 </dict>
 </plist>

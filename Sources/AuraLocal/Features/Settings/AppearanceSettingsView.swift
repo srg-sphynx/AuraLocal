@@ -110,7 +110,16 @@ struct AppearanceSettingsView: View {
             }
             Spacer()
             Button(active ? "Active" : "Apply") {
-                settingsStore.settings.theme.activePresetID = active ? nil : preset.id
+                if active {
+                    settingsStore.settings.theme.activePresetID = nil
+                } else {
+                    // Apply the preset's accent + snap Mode to its saved base so it
+                    // looks as saved. Mode stays the source of truth afterward, so the
+                    // Mode switch keeps working while the preset is active.
+                    settingsStore.settings.theme.activePresetID = preset.id
+                    settingsStore.settings.theme.accentHex = preset.accentHex
+                    settingsStore.settings.theme.mode = preset.basedOnDark ? .dark : .light
+                }
             }.buttonStyle(GhostGlassButtonStyle()).font(Theme.Font.bodySm())
             Button {
                 settingsStore.settings.theme.customThemes.removeAll { $0.id == preset.id }

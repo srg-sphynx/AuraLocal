@@ -118,7 +118,13 @@ enum MessageRole: String, Codable { case system, user, assistant }
 struct Citation: Identifiable, Hashable, Codable {
     var id = UUID()
     var fileName: String
+    /// Path relative to the vault root (matches the DB's stored path).
     var filePath: String
+    /// Which vault this source came from — lets us open the file straight from the
+    /// chat (even from an old session after the selected vault changed). Optional so
+    /// sessions saved before this field decode cleanly (they fall back to the
+    /// currently selected vault).
+    var projectID: UUID? = nil
     var heading: String?
     var snippet: String
     var score: Double

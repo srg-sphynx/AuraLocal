@@ -111,9 +111,13 @@ The embedding pass is **resumable**. `IndexingService` observes the embedding mo
 
 ## Theming and the app shell
 
-The theming system (`Theme/ThemeManager.swift`, `Theme/Theme.swift`) exposes static palette tokens (`Theme.Palette.*`) that read from a mirrored palette, so a large number of call sites stay unchanged while becoming fully dynamic. The root view applies the selected theme and re-renders on theme revision changes for live switching.
+The theming system (`Theme/ThemeManager.swift`, `Theme/Theme.swift`) exposes static palette tokens (`Theme.Palette.*`) that read from a mirrored palette, so a large number of call sites stay unchanged while becoming fully dynamic.
 
-Supported controls: light / dark / system, accent color, high-contrast mode, density, and custom presets. A **glass transparency** slider drives the tint of the app's translucent panes. Text size follows the macOS system setting (re-resolved when the app becomes active) rather than an in-app slider. Applying an unchanged theme is a no-op, so window re-activation is free. WCAG contrast helpers (with a debug-only audit) guard against low-contrast palettes.
+Live switching uses two change signals so the two kinds of edit don't fight each other. `ThemeManager` publishes an `appearanceRevision` that bumps only on **structural** changes (mode/appearance/accent/contrast/preset/density/text-size); `RootView` keys the pane tree's `.id` on it, so a structural change rebuilds the tree once and re-colors the whole window in a single pass — no section is left with stale text until it's hovered. The **glass transparency** slider is continuous, so it deliberately does *not* bump `appearanceRevision`; instead `GlassPane` observes `ThemeManager` and re-tints in place on the general `revision` counter, preserving scroll positions while dragging. Applying an unchanged theme is a full no-op, so window re-activation is free.
+
+Mode (light / dark / system) is the single source of truth for the light/dark base; a custom preset only contributes its accent (plus surface tweaks when its saved base matches), so the Mode switch keeps working while a preset is active. Supported controls: light / dark / system, accent color, high-contrast mode, density, glass transparency, and custom presets. Text size follows the macOS system setting (re-resolved when the app becomes active) rather than an in-app slider. WCAG contrast helpers guard against low-contrast palettes: `Color.readableText(on:minRatio:)` darkens/lightens accent-derived text just enough to clear AA for any accent, and a debug-only audit logs any remaining low-contrast token pair.
+
+Answers carry their retrieval `Citation`s (which record the vault id and vault-relative path); `SourceOpener` resolves a citation back to an on-disk file through the vault's security-scoped bookmark and opens or reveals it. Source chips under each answer and the Context inspector's **Sources in this chat** list are both backed by this, so any cited file can be opened straight from the conversation.
 
 ## Notes and limitations
 

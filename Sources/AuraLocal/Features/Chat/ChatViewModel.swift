@@ -101,7 +101,7 @@ final class ChatViewModel: ObservableObject {
             if !chunks.isEmpty {
                 contextBlock = Self.buildContext(chunks)
                 citations = chunks.map {
-                    Citation(fileName: $0.fileName, filePath: $0.filePath,
+                    Citation(fileName: $0.fileName, filePath: $0.filePath, projectID: project.id,
                              heading: $0.heading, snippet: String($0.text.prefix(220)), score: $0.score)
                 }
             }

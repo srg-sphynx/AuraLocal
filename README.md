@@ -23,6 +23,7 @@ It is designed to stay reliable on large corpora (tested against vaults in the h
 - **Fully local and private.** Inference and embeddings run through Ollama or LM Studio on your own hardware. Documents are never uploaded.
 - **Broad document support.** Markdown/Obsidian, PDF (with optional OCR), DOCX, EPUB, RTF/RTFD, HTML, MediaWiki, CSV/TSV, and plain text — all normalized to Markdown for consistent chunking.
 - **Serious retrieval.** Hybrid keyword + semantic search, Reciprocal Rank Fusion re-ranking, parent-document expansion, optional query expansion (Multi-Query / HyDE), and an optional approximate-nearest-neighbor index for large collections.
+- **Traceable answers.** Every answer shows the exact sources that grounded it — click a source to open the file in its default app, or browse **Sources in this chat** in the Context inspector to revisit everything the whole conversation drew on.
 - **Integrated model management.** A built-in Model Zoo discovers installed models, and an Ollama control panel drives the Ollama CLI (start/stop server, pull, load, unload) directly from the app, with a copyable command cheatsheet.
 - **Built-in diagnostics.** A filterable log console, per-file indexing issues, and one-click export make it easy to see exactly what happened.
 - **Guided onboarding and deep theming.** A live five-step setup flow, plus light/dark/system themes, accent colors, adjustable glass transparency, high-contrast mode, and custom presets. Text size follows your macOS system setting.

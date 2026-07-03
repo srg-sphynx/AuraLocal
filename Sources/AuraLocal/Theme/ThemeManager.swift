@@ -51,10 +51,15 @@ extension ThemePalette {
         var p = dark ? darkBase(hc: hc) : lightBase(hc: hc)
         p.isDark = dark
 
-        // Accent-derived primary tokens.
+        // Accent-derived primary tokens. In light mode the primary is used as *text*
+        // (slider values, citation headings, links), so it must clear AA against the
+        // near-white surface for *any* accent the user picks — a fixed mix leaves
+        // bright accents (emerald/amber/cyan) at ~3:1. `readableText` darkens only as
+        // much as needed. Dark mode keeps the lighten-toward-white formula (it already
+        // passes comfortably and stays vivid).
         p.primaryVivid = accent
         p.primary = dark ? accent.mixed(with: .white, by: hc ? 0.64 : 0.50)
-                         : accent.mixed(with: .black, by: hc ? 0.32 : 0.18)
+                         : accent.readableText(on: p.surfaceContainer, minRatio: hc ? 5.5 : 4.5)
         p.onPrimary = accent.perceivedBrightness > 0.62 ? Color(hex: 0x101015) : .white
         p.onPrimaryReadable = .white
         p.primaryFixed = accent.mixed(with: .white, by: 0.72)
@@ -109,8 +114,10 @@ extension ThemePalette {
             primary: Color(hex: hc ? 0x33319E : 0x4F4DD6), primaryVivid: Color(hex: 0x5E5CE6),
             onPrimary: .white, onPrimaryReadable: .white, primaryFixed: Color(hex: 0x3F3DBE),
             secondary: Color(hex: 0x44566B), secondaryContainer: Color(hex: 0xD7E3F7),
-            success: Color(hex: hc ? 0x107A24 : 0x1F9D38), successContainer: Color(hex: 0xB6F2BE),
-            warning: Color(hex: 0xB8860B), error: Color(hex: hc ? 0xA1000A : 0xC0341E), errorContainer: Color(hex: 0xFFDAD4),
+            // Darker success/warning so they read as *text* on white (the previous
+            // 0x1F9D38 / 0xB8860B sat at ~2.9:1 — well under AA).
+            success: Color(hex: hc ? 0x0A5F22 : 0x0E7A2B), successContainer: Color(hex: 0xB6F2BE),
+            warning: Color(hex: hc ? 0x5F4600 : 0x835F07), error: Color(hex: hc ? 0xA1000A : 0xC0341E), errorContainer: Color(hex: 0xFFDAD4),
             glassBorder: Color.black.opacity(hc ? 0.46 : 0.15),
             glassBorderSoft: Color.black.opacity(hc ? 0.30 : 0.10),
             // Light mode reads best with bright, white-based cards/fields over the
@@ -141,7 +148,15 @@ final class ThemeManager: ObservableObject {
     static let shared = ThemeManager()
 
     @Published private(set) var current: ThemePalette
+    /// Bumps on *every* theme change (including a Transparency drag). Live-observing
+    /// chrome (e.g. `GlassPane`) watches this to re-tint in place.
     @Published private(set) var revision: Int = 0
+    /// Bumps only on *structural* changes (mode/appearance/accent/contrast/preset/
+    /// density/text-size) — never on a Transparency drag. `RootView` keys the pane
+    /// tree's `.id` on this so a mode/accent switch fully rebuilds (guaranteeing a
+    /// global re-color with no stale "hover to refresh" text), while dragging
+    /// Transparency updates live without resetting any scroll positions.
+    @Published private(set) var appearanceRevision: Int = 0
     @Published private(set) var fontScale: CGFloat = 1.0
     @Published private(set) var density: ThemeDensity = .comfortable
     @Published private(set) var mode: AppearanceMode = .dark
@@ -155,10 +170,11 @@ final class ThemeManager: ObservableObject {
     nonisolated(unsafe) static var densityValue: ThemeDensity = .comfortable
     nonisolated(unsafe) static var glassValue: CGFloat = 0.4
 
-    /// Identity of the last applied configuration — lets `apply` become a no-op when
-    /// nothing changed (it's called on every app activation to track the system
-    /// text size, and a spurious revision bump rebuilds the whole view tree).
-    private var appliedKey: String?
+    /// Identity of the last applied *structural* configuration (everything but glass
+    /// transparency) — lets `apply` skip the palette rebuild + `.id` bump when only
+    /// the Transparency slider moved (or nothing changed at all, e.g. the per-
+    /// activation text-size re-check).
+    private var appliedStructureKey: String?
 
     private init() {
         current = ThemeManager.palette
@@ -181,7 +197,13 @@ final class ThemeManager: ObservableObject {
     }
 
     /// Recompute the palette from a config + the current system appearance.
-    /// No-ops (no rebuild) when the resolved theme is identical to the current one.
+    ///  - A *structural* change (mode/appearance/accent/contrast/preset/density/text
+    ///    size) rebuilds the palette and bumps `appearanceRevision` → `RootView`'s
+    ///    keyed pane tree rebuilds, so every view re-reads its colors immediately.
+    ///  - A Transparency-only change updates the glass tint and bumps `revision`
+    ///    (live re-tint) *without* a structural rebuild, so dragging never resets
+    ///    scroll positions.
+    ///  - No change at all (the per-activation text-size re-check) is a full no-op.
     func apply(_ config: ThemeConfig, systemDark: Bool) {
         let dark: Bool
         switch config.mode {
@@ -189,33 +211,49 @@ final class ThemeManager: ObservableObject {
         case .light: dark = false
         case .system: dark = systemDark
         }
+        // Mode is the single source of truth for the light/dark base. A custom theme
+        // only contributes its accent (always) plus its surface tweaks (only when its
+        // saved base matches the resolved appearance — otherwise a dark preset's text
+        // color would land on a light surface and break contrast). This keeps the
+        // Mode switch fully functional even while a preset is active.
         let preset = config.activePreset
-        let baseDark = preset?.basedOnDark ?? dark
+        let baseDark = dark
         let accentHex = preset?.accentHex ?? config.accentHex
+        let effectivePreset = (preset?.basedOnDark == baseDark) ? preset : nil
         let newScale = Self.systemFontScale()
         let glass = CGFloat(min(max(config.glassTransparency, 0), 1))
 
-        let key = "\(config.mode.rawValue)|\(baseDark)|\(config.highContrast)|\(accentHex)|" +
-                  "\(preset?.id.uuidString ?? "-")|\(config.density.rawValue)|\(glass)|\(newScale)"
-        guard key != appliedKey else { return }
-        appliedKey = key
+        let structureKey = "\(baseDark)|\(config.highContrast)|\(accentHex)|" +
+                           "\(effectivePreset?.id.uuidString ?? "-")|\(config.density.rawValue)|\(newScale)"
+        let structureChanged = structureKey != appliedStructureKey
+        let glassChanged = glass != ThemeManager.glassValue
+        let modeChanged = config.mode != mode
+        guard structureChanged || glassChanged || modeChanged else { return }
 
+        // Mode drives `preferredColorScheme`, so track it even when the resolved
+        // palette is identical (e.g. System→Dark while the system is already dark).
         mode = config.mode
-        let newPalette = ThemePalette.make(dark: baseDark, highContrast: config.highContrast,
-                                           accent: Color(hex: accentHex), preset: preset)
-        current = newPalette
-        fontScale = newScale
-        density = config.density
-
-        ThemeManager.palette = newPalette
-        ThemeManager.fontScaleValue = newScale
-        ThemeManager.densityValue = config.density
         ThemeManager.glassValue = glass
-        revision &+= 1
 
-        #if DEBUG
-        auditContrast()
-        #endif
+        if structureChanged {
+            appliedStructureKey = structureKey
+            let newPalette = ThemePalette.make(dark: baseDark, highContrast: config.highContrast,
+                                               accent: Color(hex: accentHex), preset: effectivePreset)
+            current = newPalette
+            fontScale = newScale
+            density = config.density
+            ThemeManager.palette = newPalette
+            ThemeManager.fontScaleValue = newScale
+            ThemeManager.densityValue = config.density
+            appearanceRevision &+= 1
+
+            #if DEBUG
+            auditContrast()
+            #endif
+        }
+        // Every code path that got here changed *something* the UI shows — bump the
+        // live revision so glass panes re-tint and mode-dependent chrome re-renders.
+        revision &+= 1
     }
 
     #if DEBUG
@@ -256,6 +294,23 @@ extension Color {
                      green: a.g + (b.g - a.g) * f,
                      blue: a.b + (b.b - a.b) * f,
                      opacity: a.o + (b.o - a.o) * f)
+    }
+
+    /// Nudge this color toward black (on a light background) or white (on a dark
+    /// one) just far enough to clear `minRatio` WCAG contrast against `bg`. A color
+    /// that already passes is returned unchanged, so vivid accents stay vivid and
+    /// only the ones that would be unreadable get darkened/lightened. Binary search
+    /// finds the smallest mix that passes (≈8-bit precision in 12 steps).
+    func readableText(on bg: Color, minRatio: Double) -> Color {
+        guard contrastRatio(against: bg) < minRatio else { return self }
+        let toward: Color = bg.wcagLuminance > 0.5 ? .black : .white
+        var lo = 0.0, hi = 1.0
+        for _ in 0..<12 {
+            let mid = (lo + hi) / 2
+            if mixed(with: toward, by: mid).contrastRatio(against: bg) >= minRatio { hi = mid }
+            else { lo = mid }
+        }
+        return mixed(with: toward, by: hi)
     }
 
     /// Perceived brightness (0…1) for choosing readable on-colors.

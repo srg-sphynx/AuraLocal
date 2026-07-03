@@ -22,6 +22,7 @@ struct InspectorPanel: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     retrievalDirectives
+                    chatSourcesSection
                     retrievalParams
                     if !chat.lastRetrieval.isEmpty { retrievedContext }
                     indexedFilesSection
@@ -115,6 +116,41 @@ struct InspectorPanel: View {
         }
     }
 
+    // MARK: Sources in this chat (every cited file, clickable — opens the exact file)
+
+    /// Unique cited files across the whole session, highest-scoring first, so the
+    /// user can jump back to the sources behind any earlier answer — not just the
+    /// last turn (that's `retrievedContext`).
+    private var sessionSources: [Citation] {
+        guard let msgs = chat.currentSession?.messages else { return [] }
+        var seen = Set<String>()
+        var out: [Citation] = []
+        for m in msgs where m.role == .assistant {
+            for c in m.citations {
+                let key = "\(c.projectID?.uuidString ?? "-")|\(c.filePath)"
+                if seen.insert(key).inserted { out.append(c) }
+            }
+        }
+        return out.sorted { $0.score > $1.score }
+    }
+
+    @ViewBuilder
+    private var chatSourcesSection: some View {
+        let sources = sessionSources
+        if !sources.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    MicroLabel(text: "Sources in this chat")
+                    Spacer()
+                    Text("\(sources.count)").font(Theme.Font.bodySm()).foregroundStyle(Theme.Palette.outline)
+                }
+                ForEach(sources) { SourceRow(citation: $0) }
+                Text("Click a source to open the exact file.")
+                    .font(Theme.Font.micro()).foregroundStyle(Theme.Palette.outline)
+            }
+        }
+    }
+
     // MARK: Retrieved context preview (what fed the last answer)
 
     private var retrievedContext: some View {
@@ -204,5 +240,48 @@ struct InspectorPanel: View {
             }
         }
         .padding(.horizontal, 14).padding(.vertical, 12)
+    }
+}
+
+/// A clickable source row (Inspector "Sources in this chat"): opens the exact file
+/// on click, reveals in Finder from the context menu.
+struct SourceRow: View {
+    let citation: Citation
+    @EnvironmentObject var projects: ProjectStore
+    @State private var hover = false
+
+    private var project: Project? { projects.project(id: citation.projectID) }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: SourceIcon.symbol(for: citation.fileName))
+                .font(.system(size: 11)).foregroundStyle(Theme.Palette.primary)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(citation.fileName).font(Theme.Font.bodySm().weight(.medium))
+                    .foregroundStyle(Theme.Palette.onSurface).lineLimit(1)
+                if let h = citation.heading, !h.isEmpty {
+                    Text(h).font(Theme.Font.micro()).foregroundStyle(Theme.Palette.outline).lineLimit(1)
+                }
+            }
+            Spacer(minLength: 4)
+            Image(systemName: "arrow.up.forward.app").font(.system(size: 10))
+                .foregroundStyle(hover ? Theme.Palette.primary : Theme.Palette.outline)
+        }
+        .padding(.horizontal, 9).padding(.vertical, 7)
+        .glassCard(radius: Theme.Radius.sm, selected: hover)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            SourceOpener.open(project: project, relativePath: citation.filePath, fileName: citation.fileName)
+        }
+        .onHover { hover = $0 }
+        .help("Open \(citation.fileName)")
+        .contextMenu {
+            Button("Open") {
+                SourceOpener.open(project: project, relativePath: citation.filePath, fileName: citation.fileName)
+            }
+            Button("Reveal in Finder") {
+                SourceOpener.reveal(project: project, relativePath: citation.filePath, fileName: citation.fileName)
+            }
+        }
     }
 }
