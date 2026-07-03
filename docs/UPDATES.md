@@ -114,8 +114,17 @@ Edit **both** keys in `Packaging/Info.plist` (they can match):
 <key>CFBundleVersion</key>             <string>3.2.0</string>   <!-- build number Sparkle compares -->
 ```
 
-Add a section to `CHANGELOG.md`. Sparkle can show release notes in the update
-prompt (see step 4).
+**`Info.plist` is the single source of truth for the version.** The app reads
+`CFBundleShortVersionString` at runtime (`AppInfo.version`) everywhere it's shown
+(Settings → About, Software Updates, the "What's New" sheet), so you never edit a
+version string anywhere else — don't hardcode it in the UI.
+
+**A `CHANGELOG.md` entry is required, not optional.** Add a `## [<version>] — <date>`
+section with detailed, user-facing notes. That one section is reused three ways:
+GitHub Release notes, the in-app **What's New** viewer (the changelog is bundled
+into the app), and — after an update — the one-time popup users see. `build_app.sh`
+copies `CHANGELOG.md` into the app bundle, and `release_update.sh` **aborts** if the
+current version has no changelog section, so notes can never be forgotten.
 
 ### 2. Build the signed DMG
 

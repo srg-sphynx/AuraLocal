@@ -119,6 +119,8 @@ Mode (light / dark / system) is the single source of truth for the light/dark ba
 
 Answers carry their retrieval `Citation`s (which record the vault id and vault-relative path); `SourceOpener` resolves a citation back to an on-disk file through the vault's security-scoped bookmark and opens or reveals it. Source chips under each answer and the Context inspector's **Sources in this chat** list are both backed by this, so any cited file can be opened straight from the conversation.
 
+The app version is single-sourced from the bundle's `Info.plist` via `AppInfo` (`Services/AppInfo.swift`) — the UI never hardcodes it. `AppInfo` also reads the bundled `CHANGELOG.md` (copied into `Resources` by `build_app.sh`) so the **What's New** viewer (`WhatsNewView`) can render the current release's notes and the full history; it auto-presents once after a version change (`RootView` compares `AppInfo.version` against `settings.lastSeenVersion`).
+
 ## Notes and limitations
 
 - The extractors are exercised in the running app but do not yet have a standalone automated test suite (a small library refactor would be needed to make them independently testable). Unusual documents may extract imperfectly.

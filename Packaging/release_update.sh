@@ -25,17 +25,33 @@ DL_PREFIX="https://github.com/$REPO/releases/download/$TAG/"
 command -v gh >/dev/null || { echo "✗ gh CLI not found"; exit 1; }
 [ -x "$BIN/generate_appcast" ] || { echo "✗ Sparkle tools missing — run 'swift build' first"; exit 1; }
 
+# Preflight: every release MUST have a CHANGELOG entry for this version — it becomes
+# the GitHub Release notes and the in-app "What's New". Extract the `## [VERSION] …`
+# section (up to the next `## `). Abort if it's missing so we never ship blank notes.
+NOTES_FILE="$(mktemp)"
+awk -v ver="$VERSION" '
+  /^## / { if (cap) exit; if (index($0, "[" ver "]") > 0) { cap=1; next } }
+  cap { print }
+' "$ROOT/CHANGELOG.md" > "$NOTES_FILE"
+{ echo; echo "— Full changelog: https://github.com/$REPO/blob/main/CHANGELOG.md"; } >> "$NOTES_FILE"
+if ! grep -q '[^[:space:]]' "$NOTES_FILE"; then
+  echo "✗ CHANGELOG.md has no '## [$VERSION] — <date>' section. Add detailed release notes for $VERSION first."
+  exit 1
+fi
+
 echo "▸ Building $TAG…"
 bash "$PKG/build_app.sh"
 [ -f "$DMG" ] || { echo "✗ expected $DMG"; exit 1; }
 
-echo "▸ Publishing GitHub Release $TAG…"
+echo "▸ Publishing GitHub Release $TAG (notes from CHANGELOG)…"
 if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
   gh release upload "$TAG" "$DMG" --repo "$REPO" --clobber
+  gh release edit "$TAG" --repo "$REPO" --title "Aura Local $VERSION" --notes-file "$NOTES_FILE"
 else
   gh release create "$TAG" "$DMG" --repo "$REPO" --target main \
-    --title "Aura Local $VERSION" --notes "See CHANGELOG.md."
+    --title "Aura Local $VERSION" --notes-file "$NOTES_FILE"
 fi
+rm -f "$NOTES_FILE"
 
 echo "▸ Signing appcast…"
 STAGE="$(mktemp -d)"

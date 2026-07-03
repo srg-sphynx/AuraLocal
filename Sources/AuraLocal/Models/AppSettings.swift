@@ -77,6 +77,9 @@ struct AppSettings: Codable, Equatable {
     // MARK: Onboarding
     var hasCompletedOnboarding: Bool = false
     var onboardingVersion: Int = 0
+    /// Last app version whose "What's New" the user has seen. Drives the one-time
+    /// post-update changelog popup (see `RootView`). Empty on a fresh install.
+    var lastSeenVersion: String = ""
 
     // MARK: Storage / indexing rules
     var excludedPatterns: [String] = [
@@ -136,6 +139,7 @@ extension AppSettings {
         formatsUpgradedV3 = s(.formatsUpgradedV3, d.formatsUpgradedV3)
         hasCompletedOnboarding = s(.hasCompletedOnboarding, d.hasCompletedOnboarding)
         onboardingVersion = s(.onboardingVersion, d.onboardingVersion)
+        lastSeenVersion = s(.lastSeenVersion, d.lastSeenVersion)
         excludedPatterns = s(.excludedPatterns, d.excludedPatterns)
         includedExtensions = s(.includedExtensions, d.includedExtensions)
         vectorStorePath  = s(.vectorStorePath, d.vectorStorePath)

@@ -10,6 +10,7 @@ struct SettingsView: View {
     @State private var showClearConfirm = false
     @State private var showResetConfirm = false
     @State private var autoUpdate = true
+    @State private var showWhatsNew = false
 
     private var s: Binding<AppSettings> { $settingsStore.settings }
 
@@ -34,6 +35,7 @@ struct SettingsView: View {
             .frame(maxWidth: 820, alignment: .leading)
         }
         .glassPane()
+        .sheet(isPresented: $showWhatsNew) { WhatsNewView() }
     }
 
     // MARK: Connections
@@ -186,6 +188,18 @@ struct SettingsView: View {
         SettingsCard(title: "Software Updates", symbol: "arrow.down.circle") {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
+                    Text("Current version").font(Theme.Font.body().weight(.semibold)).foregroundStyle(Theme.Palette.onSurface)
+                    Text("You're on Aura Local \(AppInfo.versionDisplay) (build \(AppInfo.build)).")
+                        .font(Theme.Font.bodySm()).foregroundStyle(Theme.Palette.onSurfaceVariant)
+                }
+                Spacer(minLength: 8)
+                Button { showWhatsNew = true } label: {
+                    Label("What's New", systemImage: "sparkles").font(Theme.Font.bodySm())
+                }.buttonStyle(GhostGlassButtonStyle())
+            }
+            Divider().overlay(Theme.glassBorderSoft)
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text("Automatic updates").font(Theme.Font.body().weight(.semibold)).foregroundStyle(Theme.Palette.onSurface)
                     Text("Check for new versions in the background and notify you when one is ready to install.")
                         .font(Theme.Font.bodySm()).foregroundStyle(Theme.Palette.onSurfaceVariant)
@@ -262,9 +276,13 @@ struct SettingsView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Aura Local").font(Theme.Font.body().weight(.semibold)).foregroundStyle(Theme.Palette.onSurface)
-                    Text("Local RAG chat for Ollama & LM Studio · v3.2").font(Theme.Font.bodySm()).foregroundStyle(Theme.Palette.outline)
+                    Text("Local RAG chat for Ollama & LM Studio · \(AppInfo.versionDisplay)")
+                        .font(Theme.Font.bodySm()).foregroundStyle(Theme.Palette.outline)
                 }
                 Spacer()
+                Button { showWhatsNew = true } label: {
+                    Label("What's New", systemImage: "sparkles").font(Theme.Font.bodySm())
+                }.buttonStyle(GhostGlassButtonStyle())
                 Text("100% on-device").font(Theme.Font.bodySm()).foregroundStyle(Theme.Palette.success)
             }
         }

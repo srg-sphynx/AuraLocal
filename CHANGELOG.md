@@ -4,6 +4,15 @@ All notable changes to Aura Local are documented here. Version numbers follow th
 
 ## [Unreleased]
 
+## [3.3.2] — 2026-07-03
+
+### Fixed
+- **The version number shown in the app is now correct.** The About footer had a hardcoded "v3.2" that never tracked releases. The app now reads its version from the bundle (`CFBundleShortVersionString`) everywhere it's shown, so it can never go stale again — Settings → About and Settings → Software Updates both display the real running version and build.
+
+### Added
+- **"What's New" in the app.** A new changelog viewer (Settings → Software Updates → *What's New*, and Settings → About) shows the release notes for your current version, with a one-tap expand to the full history. It also pops up **once, automatically, the first time you open the app after an update** — so you always know what changed. Content is the bundled `CHANGELOG.md`, the same notes published on each GitHub Release.
+- Every GitHub Release now carries the detailed, per-version changelog as its release notes (previously just a pointer). The release tooling refuses to publish a version that has no `CHANGELOG.md` entry, so notes can never be forgotten.
+
 ## [3.3.1] — 2026-07-03
 
 ### Changed

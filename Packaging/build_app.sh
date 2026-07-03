@@ -36,6 +36,9 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Framewor
 cp "$BUILD_DIR/$EXEC_NAME" "$APP/Contents/MacOS/$EXEC_NAME"
 cp "$PKG/Info.plist" "$APP/Contents/Info.plist"
 cp "$ICON_WORK/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
+# Bundle the changelog so the in-app "What's New" can read it (AppInfo.changelogMarkdown).
+# CHANGELOG.md is the single source of truth — also shown on GitHub Releases.
+cp "$ROOT/CHANGELOG.md" "$APP/Contents/Resources/CHANGELOG.md"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 
 # Embed Sparkle.framework (SPM copies it next to the built binary) so the

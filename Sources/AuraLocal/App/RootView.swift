@@ -12,7 +12,25 @@ struct RootView: View {
     @ObservedObject private var toasts = ToastCenter.shared
     @Environment(\.colorScheme) private var systemScheme
 
+    @State private var showWhatsNew = false
+
     private var showOnboarding: Bool { !settingsStore.settings.hasCompletedOnboarding }
+
+    /// Auto-present "What's New" exactly once after the app version changes. A fresh
+    /// install just records the current version as a silent baseline, so only an
+    /// actual update (a recorded prior version ≠ the running one) pops the sheet.
+    private func checkWhatsNew() {
+        guard settingsStore.settings.hasCompletedOnboarding else { return }
+        let current = AppInfo.version
+        guard current != "—" else { return }
+        let seen = settingsStore.settings.lastSeenVersion
+        if seen.isEmpty {
+            settingsStore.settings.lastSeenVersion = current            // baseline, no popup
+        } else if seen != current {
+            settingsStore.settings.lastSeenVersion = current
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { showWhatsNew = true }
+        }
+    }
 
     var body: some View {
         ZStack {
@@ -40,6 +58,9 @@ struct RootView: View {
                 OnboardingFlow().zIndex(10)
             }
         }
+        // Show "What's New" once, right after an update (never on a fresh install —
+        // that records a baseline silently).
+        .sheet(isPresented: $showWhatsNew) { WhatsNewView() }
         // No `.id(...)` on the tree — that rebuilds it and resets scroll positions on
         // every theme tweak. Re-coloring is instead in place: light↔dark flips through
         // dynamic colors (driven by this `preferredColorScheme`), and accent/contrast/
@@ -48,7 +69,10 @@ struct RootView: View {
         .animation(.easeInOut(duration: 0.22), value: env.inspectorVisible)
         .animation(.easeInOut(duration: 0.18), value: env.section)
         .animation(.easeInOut(duration: 0.25), value: showOnboarding)
-        .onAppear { theme.apply(settingsStore.settings.theme, systemDark: systemScheme == .dark) }
+        .onAppear {
+            theme.apply(settingsStore.settings.theme, systemDark: systemScheme == .dark)
+            checkWhatsNew()
+        }
         .onChange(of: settingsStore.settings.theme) { _, new in
             theme.apply(new, systemDark: systemScheme == .dark)
         }
