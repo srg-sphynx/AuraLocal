@@ -125,10 +125,10 @@ Aura Local ships a full theming engine:
 - Accent color — any accent stays readable (the app keeps accent-derived text at WCAG AA against the background), so bright accents don't wash out in light mode
 - High-contrast mode
 - Density control
-- **Glass transparency** slider for the translucent panes — drag it and the whole window re-tints live, without losing your place
+- **Glass transparency** for the translucent panes — pick a level (Solid / Subtle / Medium / Heavy) and every panel re-tints live
 - Custom presets you can save and switch between
 
-**Mode** (Light / Dark / System) always controls the light/dark base. A custom preset layers its accent on top and, when you apply it, snaps the Mode to the base it was saved with — so you can keep switching Light/Dark afterward. Switching Mode re-colors the entire window at once.
+**Mode** (Light / Dark / System) always controls the light/dark base. A custom preset layers its accent on top and, when you apply it, snaps the Mode to the base it was saved with — so you can keep switching Light/Dark afterward. Switching Mode re-colors the entire window at once — instantly and in place, so you never lose your scroll position.
 
 Text size follows your macOS system text-size setting automatically and updates when you change it.
 

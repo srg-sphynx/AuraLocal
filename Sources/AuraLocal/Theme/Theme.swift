@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// Central design tokens. Colors are resolved live from `ThemeManager` so the
 /// whole app re-themes (light/dark/contrast/accent/custom) without touching the
@@ -8,43 +9,47 @@ enum Theme {
 
     // MARK: - Palette (dynamic — reads the active theme)
 
+    /// Every token is a *dynamic* color that resolves light/dark by the drawing
+    /// appearance (see `ThemeManager.dynamic`). So a light↔dark switch — whether the
+    /// system toggles or the user picks a Mode — recolors the whole app in place,
+    /// with no view needing to observe the theme and no `.id` rebuild (scroll
+    /// positions are preserved). Cached as `static let` since each dynamic color
+    /// reads the live palettes lazily and never needs rebuilding.
     enum Palette {
-        private static var p: ThemePalette { ThemeManager.palette }
+        static let surface = ThemeManager.dynamic(\.surface)
+        static let surfaceContainerLowest = ThemeManager.dynamic(\.surfaceContainerLowest)
+        static let surfaceContainerLow = ThemeManager.dynamic(\.surfaceContainerLow)
+        static let surfaceContainer = ThemeManager.dynamic(\.surfaceContainer)
+        static let surfaceContainerHigh = ThemeManager.dynamic(\.surfaceContainerHigh)
+        static let surfaceContainerHighest = ThemeManager.dynamic(\.surfaceContainerHighest)
+        static let surfaceBright = ThemeManager.dynamic(\.surfaceBright)
 
-        static var surface: Color { p.surface }
-        static var surfaceContainerLowest: Color { p.surfaceContainerLowest }
-        static var surfaceContainerLow: Color { p.surfaceContainerLow }
-        static var surfaceContainer: Color { p.surfaceContainer }
-        static var surfaceContainerHigh: Color { p.surfaceContainerHigh }
-        static var surfaceContainerHighest: Color { p.surfaceContainerHighest }
-        static var surfaceBright: Color { p.surfaceBright }
+        static let onSurface = ThemeManager.dynamic(\.onSurface)
+        static let onSurfaceVariant = ThemeManager.dynamic(\.onSurfaceVariant)
+        static let outline = ThemeManager.dynamic(\.outline)
+        static let outlineVariant = ThemeManager.dynamic(\.outlineVariant)
 
-        static var onSurface: Color { p.onSurface }
-        static var onSurfaceVariant: Color { p.onSurfaceVariant }
-        static var outline: Color { p.outline }
-        static var outlineVariant: Color { p.outlineVariant }
+        static let primary = ThemeManager.dynamic(\.primary)
+        static let primaryVivid = ThemeManager.dynamic(\.primaryVivid)
+        static let onPrimary = ThemeManager.dynamic(\.onPrimary)
+        static let onPrimaryReadable = ThemeManager.dynamic(\.onPrimaryReadable)
+        static let primaryFixed = ThemeManager.dynamic(\.primaryFixed)
 
-        static var primary: Color { p.primary }
-        static var primaryVivid: Color { p.primaryVivid }
-        static var onPrimary: Color { p.onPrimary }
-        static var onPrimaryReadable: Color { p.onPrimaryReadable }
-        static var primaryFixed: Color { p.primaryFixed }
+        static let secondary = ThemeManager.dynamic(\.secondary)
+        static let secondaryContainer = ThemeManager.dynamic(\.secondaryContainer)
 
-        static var secondary: Color { p.secondary }
-        static var secondaryContainer: Color { p.secondaryContainer }
-
-        static var success: Color { p.success }
-        static var successContainer: Color { p.successContainer }
-        static var warning: Color { p.warning }
-        static var error: Color { p.error }
-        static var errorContainer: Color { p.errorContainer }
+        static let success = ThemeManager.dynamic(\.success)
+        static let successContainer = ThemeManager.dynamic(\.successContainer)
+        static let warning = ThemeManager.dynamic(\.warning)
+        static let error = ThemeManager.dynamic(\.error)
+        static let errorContainer = ThemeManager.dynamic(\.errorContainer)
 
         // Adaptive fills (flip white↔black between light & dark).
-        static var cardFill: Color { p.cardFill }
-        static var cardFillSelected: Color { p.cardFillSelected }
-        static var hoverFill: Color { p.hoverFill }
-        static var fieldFill: Color { p.fieldFill }
-        static var trackFill: Color { p.trackFill }
+        static let cardFill = ThemeManager.dynamic(\.cardFill)
+        static let cardFillSelected = ThemeManager.dynamic(\.cardFillSelected)
+        static let hoverFill = ThemeManager.dynamic(\.hoverFill)
+        static let fieldFill = ThemeManager.dynamic(\.fieldFill)
+        static let trackFill = ThemeManager.dynamic(\.trackFill)
     }
 
     // MARK: - Radii (continuous curves)
@@ -69,19 +74,25 @@ enum Theme {
         static let windowInset: CGFloat = 12
     }
 
-    // MARK: - Glass strokes (dynamic)
+    // MARK: - Glass strokes (dynamic — resolve light/dark by appearance)
 
-    static var glassBorder: Color { ThemeManager.palette.glassBorder }
-    static var glassBorderSoft: Color { ThemeManager.palette.glassBorderSoft }
+    static let glassBorder = ThemeManager.dynamic(\.glassBorder)
+    static let glassBorderSoft = ThemeManager.dynamic(\.glassBorderSoft)
 
     /// Pane fill over the vibrancy material. Driven by the user's Transparency
-    /// setting: 0 = nearly solid surface, 1 = mostly the blurred wallpaper.
+    /// setting: 0 = nearly solid surface, 1 = mostly the blurred wallpaper. Dynamic,
+    /// so it also flips its base surface with the appearance; the transparency level
+    /// is read live so a preset change re-tints every pane (`GlassPane` observes the
+    /// theme and redraws).
     static var paneTint: Color {
-        let t = ThemeManager.glassValue                     // 0 solid … 1 clear
-        let dark = ThemeManager.palette.isDark
-        let maxO: Double = dark ? 0.90 : 0.96
-        let minO: Double = dark ? 0.28 : 0.42
-        return Palette.surface.opacity(maxO - (maxO - minO) * Double(t))
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            let pal = dark ? ThemeManager.dynDark : ThemeManager.dynLight
+            let t = Double(ThemeManager.glassValue)         // 0 solid … 1 clear
+            let maxO: Double = dark ? 0.90 : 0.96
+            let minO: Double = dark ? 0.28 : 0.42
+            return NSColor(pal.surface).withAlphaComponent(maxO - (maxO - minO) * t)
+        })
     }
 
     // MARK: - Typography (scaled by the user's font-scale)

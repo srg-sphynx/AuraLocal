@@ -4,6 +4,15 @@ All notable changes to Aura Local are documented here. Version numbers follow th
 
 ## [Unreleased]
 
+## [3.3.1] — 2026-07-03
+
+### Changed
+- **Theme switching no longer resets your scroll position.** 3.3.0 recolored the window by rebuilding the whole view tree (`.id`), which snapped Settings — and any open chat — back to the top on every theme change. The palette is now exposed as *dynamic* colors that resolve light/dark by the drawing appearance, so switching Mode (or the system flipping in *System* mode) recolors the entire window **instantly and in place**, with nothing rebuilt and no scroll lost. Accent, high-contrast, and transparency changes likewise re-render in place.
+- **Transparency is now a set of presets, not a slider.** The continuous slider is gone; pick **Solid / Subtle / Medium / Heavy** with one tap. Every glass panel re-tints live.
+
+### Fixed
+- Confirmed light↔dark flips every section in one pass (no more "hover to reveal the right color") — including panes whose parent view doesn't observe the theme, since the dynamic colors re-resolve at the layer level regardless.
+
 ## [3.3.0] — 2026-07-03
 
 ### Added

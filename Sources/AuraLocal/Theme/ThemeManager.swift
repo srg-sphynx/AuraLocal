@@ -1,8 +1,10 @@
 import SwiftUI
 import AppKit
 
-/// The full set of color tokens for one resolved theme. `Theme.Palette.*` reads
-/// from `ThemeManager.shared.current`, so swapping this struct re-themes the app.
+/// The full set of color tokens for one resolved appearance. Both a light and a
+/// dark instance are held live (`ThemeManager.dynLight` / `dynDark`); `Theme.Palette.*`
+/// exposes each token as a dynamic color that picks between them by the drawing
+/// appearance, so light↔dark flips recolor the app in place.
 struct ThemePalette {
     // Surfaces
     var surface: Color
@@ -147,38 +149,49 @@ extension ThemePalette {
 final class ThemeManager: ObservableObject {
     static let shared = ThemeManager()
 
-    @Published private(set) var current: ThemePalette
-    /// Bumps on *every* theme change (including a Transparency drag). Live-observing
-    /// chrome (e.g. `GlassPane`) watches this to re-tint in place.
+    /// Bumps on *every* theme change. Chrome that isn't inherently appearance-aware
+    /// (`GlassPane`, and the section containers that observe this manager) watches it
+    /// to re-render **in place** — no `.id` rebuild, so scroll positions survive. The
+    /// light↔dark flip doesn't even need this: the palette is exposed as *dynamic*
+    /// colors (see `dynamic(_:)`) that AppKit re-resolves against the drawing
+    /// appearance automatically, exactly like a system dark-mode toggle.
     @Published private(set) var revision: Int = 0
-    /// Bumps only on *structural* changes (mode/appearance/accent/contrast/preset/
-    /// density/text-size) — never on a Transparency drag. `RootView` keys the pane
-    /// tree's `.id` on this so a mode/accent switch fully rebuilds (guaranteeing a
-    /// global re-color with no stale "hover to refresh" text), while dragging
-    /// Transparency updates live without resetting any scroll positions.
-    @Published private(set) var appearanceRevision: Int = 0
     @Published private(set) var fontScale: CGFloat = 1.0
     @Published private(set) var density: ThemeDensity = .comfortable
     @Published private(set) var mode: AppearanceMode = .dark
 
-    /// Nonisolated mirrors so `Theme.Palette.*` / `Theme.Font` (static, called from
-    /// view bodies) can read the live values without crossing actor boundaries.
-    /// Written only on the main actor in `apply`, read only during view layout.
-    nonisolated(unsafe) static var palette: ThemePalette =
+    /// Both appearances are always resolved and held side-by-side; the dynamic colors
+    /// in `Theme.Palette` pick between them by the *drawing* appearance. Rebuilt only
+    /// on a structural change (accent/contrast/preset/density). Nonisolated so the
+    /// static `Theme.Palette.*` accessors (called during layout) can read them.
+    nonisolated(unsafe) static var dynLight: ThemePalette =
+        ThemePalette.make(dark: false, highContrast: false, accent: Color(hex: 0x5E5CE6), preset: nil)
+    nonisolated(unsafe) static var dynDark: ThemePalette =
         ThemePalette.make(dark: true, highContrast: false, accent: Color(hex: 0x5E5CE6), preset: nil)
     nonisolated(unsafe) static var fontScaleValue: CGFloat = 1.0
     nonisolated(unsafe) static var densityValue: ThemeDensity = .comfortable
     nonisolated(unsafe) static var glassValue: CGFloat = 0.4
 
+    /// A `Color` that resolves live from `dynLight`/`dynDark` by the drawing
+    /// appearance. Because AppKit re-resolves dynamic colors whenever the effective
+    /// appearance changes (system toggle *or* `preferredColorScheme`), a light↔dark
+    /// switch recolors the entire app instantly and in place — no view has to observe
+    /// anything, and there's no `.id` rebuild to reset scroll positions.
+    nonisolated static func dynamic(_ keyPath: KeyPath<ThemePalette, Color>) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            return NSColor(dark ? ThemeManager.dynDark[keyPath: keyPath]
+                                : ThemeManager.dynLight[keyPath: keyPath])
+        })
+    }
+
     /// Identity of the last applied *structural* configuration (everything but glass
-    /// transparency) — lets `apply` skip the palette rebuild + `.id` bump when only
-    /// the Transparency slider moved (or nothing changed at all, e.g. the per-
-    /// activation text-size re-check).
+    /// transparency and mode) — lets `apply` skip the palette rebuild when only the
+    /// Transparency preset moved (or nothing changed at all, e.g. the per-activation
+    /// text-size re-check).
     private var appliedStructureKey: String?
 
-    private init() {
-        current = ThemeManager.palette
-    }
+    private init() {}
 
     var preferredColorScheme: ColorScheme? {
         switch mode {
@@ -196,86 +209,77 @@ final class ThemeManager: ObservableObject {
         return min(max(body / 13.0, 0.9), 1.4)
     }
 
-    /// Recompute the palette from a config + the current system appearance.
-    ///  - A *structural* change (mode/appearance/accent/contrast/preset/density/text
-    ///    size) rebuilds the palette and bumps `appearanceRevision` → `RootView`'s
-    ///    keyed pane tree rebuilds, so every view re-reads its colors immediately.
-    ///  - A Transparency-only change updates the glass tint and bumps `revision`
-    ///    (live re-tint) *without* a structural rebuild, so dragging never resets
-    ///    scroll positions.
+    /// Recompute both appearance palettes from a config. Everything re-colors *in
+    /// place*:
+    ///  - light↔dark is driven by `mode` → `preferredColorScheme`; the dynamic colors
+    ///    re-resolve against the new drawing appearance automatically (no rebuild).
+    ///  - accent/contrast/preset/density/transparency rebuild the held palettes and
+    ///    bump `revision`; observing chrome re-renders in place and re-reads the
+    ///    dynamic colors. No `.id` anywhere, so scroll positions never reset.
     ///  - No change at all (the per-activation text-size re-check) is a full no-op.
     func apply(_ config: ThemeConfig, systemDark: Bool) {
-        let dark: Bool
-        switch config.mode {
-        case .dark: dark = true
-        case .light: dark = false
-        case .system: dark = systemDark
-        }
-        // Mode is the single source of truth for the light/dark base. A custom theme
-        // only contributes its accent (always) plus its surface tweaks (only when its
-        // saved base matches the resolved appearance — otherwise a dark preset's text
-        // color would land on a light surface and break contrast). This keeps the
-        // Mode switch fully functional even while a preset is active.
+        // A custom theme only contributes its accent (always) plus its surface tweaks
+        // (applied per appearance, only to the base it was designed for — so a dark
+        // preset's text color never lands on a light surface). Mode stays the single
+        // source of truth for light vs. dark, so the Mode switch always works.
         let preset = config.activePreset
-        let baseDark = dark
         let accentHex = preset?.accentHex ?? config.accentHex
-        let effectivePreset = (preset?.basedOnDark == baseDark) ? preset : nil
+        let hc = config.highContrast
         let newScale = Self.systemFontScale()
         let glass = CGFloat(min(max(config.glassTransparency, 0), 1))
 
-        let structureKey = "\(baseDark)|\(config.highContrast)|\(accentHex)|" +
-                           "\(effectivePreset?.id.uuidString ?? "-")|\(config.density.rawValue)|\(newScale)"
+        let structureKey = "\(accentHex)|\(hc)|\(preset?.id.uuidString ?? "-")|" +
+                           "\(preset?.basedOnDark.description ?? "-")|\(config.density.rawValue)|\(newScale)|\(glass)"
         let structureChanged = structureKey != appliedStructureKey
-        let glassChanged = glass != ThemeManager.glassValue
         let modeChanged = config.mode != mode
-        guard structureChanged || glassChanged || modeChanged else { return }
+        guard structureChanged || modeChanged else { return }
 
-        // Mode drives `preferredColorScheme`, so track it even when the resolved
-        // palette is identical (e.g. System→Dark while the system is already dark).
+        // Mode drives `preferredColorScheme` — track it even when the palettes are
+        // unchanged (e.g. System→Dark while the system is already dark).
         mode = config.mode
-        ThemeManager.glassValue = glass
 
         if structureChanged {
             appliedStructureKey = structureKey
-            let newPalette = ThemePalette.make(dark: baseDark, highContrast: config.highContrast,
-                                               accent: Color(hex: accentHex), preset: effectivePreset)
-            current = newPalette
-            fontScale = newScale
-            density = config.density
-            ThemeManager.palette = newPalette
+            let accent = Color(hex: accentHex)
+            let lightPreset = (preset?.basedOnDark == false) ? preset : nil
+            let darkPreset  = (preset?.basedOnDark == true) ? preset : nil
+            ThemeManager.dynLight = ThemePalette.make(dark: false, highContrast: hc, accent: accent, preset: lightPreset)
+            ThemeManager.dynDark  = ThemePalette.make(dark: true,  highContrast: hc, accent: accent, preset: darkPreset)
             ThemeManager.fontScaleValue = newScale
             ThemeManager.densityValue = config.density
-            appearanceRevision &+= 1
+            ThemeManager.glassValue = glass
+            fontScale = newScale
+            density = config.density
 
             #if DEBUG
             auditContrast()
             #endif
         }
-        // Every code path that got here changed *something* the UI shows — bump the
-        // live revision so glass panes re-tint and mode-dependent chrome re-renders.
+        // Re-render observing chrome in place (accent/contrast/transparency), and keep
+        // the counter moving for any mode-only change too.
         revision &+= 1
     }
 
     #if DEBUG
-    /// Logs any text/background token pair that falls below WCAG AA (4.5:1). Runs on
-    /// every theme apply in debug builds so contrast regressions surface immediately
-    /// in the Diagnostics console.
+    /// Logs any text/background token pair that falls below WCAG AA (4.5:1). Audits
+    /// *both* appearance palettes on every apply (both are always live), so a
+    /// contrast regression in either light or dark surfaces immediately in the
+    /// Diagnostics console.
     private func auditContrast() {
-        let p = current
-        let pairs: [(String, Color, Color)] = [
-            ("onSurface/surface", p.onSurface, p.surface),
-            ("onSurfaceVariant/surfaceContainer", p.onSurfaceVariant, p.surfaceContainer),
-            ("outline(text)/surfaceContainer", p.outline, p.surfaceContainer),
-            ("primary/surfaceContainer", p.primary, p.surfaceContainer),
-            ("onPrimary/primaryVivid", p.onPrimary, p.primaryVivid),
-            ("success/surfaceContainer", p.success, p.surfaceContainer),
-            ("warning/surfaceContainer", p.warning, p.surfaceContainer),
-            ("error/surfaceContainer", p.error, p.surfaceContainer),
-        ]
-        for (name, fg, bg) in pairs {
-            let r = fg.contrastRatio(against: bg)
-            if r < 4.5 {
-                Log.ui.warning("Low contrast (\(mode.rawValue)): \(name) = \(String(format: "%.2f", r)):1 (< AA 4.5)")
+        for (label, p) in [("light", ThemeManager.dynLight), ("dark", ThemeManager.dynDark)] {
+            let pairs: [(String, Color, Color)] = [
+                ("onSurface/surface", p.onSurface, p.surface),
+                ("onSurfaceVariant/surfaceContainer", p.onSurfaceVariant, p.surfaceContainer),
+                ("outline(text)/surfaceContainer", p.outline, p.surfaceContainer),
+                ("primary/surfaceContainer", p.primary, p.surfaceContainer),
+                ("onPrimary/primaryVivid", p.onPrimary, p.primaryVivid),
+                ("success/surfaceContainer", p.success, p.surfaceContainer),
+                ("warning/surfaceContainer", p.warning, p.surfaceContainer),
+                ("error/surfaceContainer", p.error, p.surfaceContainer),
+            ]
+            for (name, fg, bg) in pairs where fg.contrastRatio(against: bg) < 4.5 {
+                let r = fg.contrastRatio(against: bg)
+                Log.ui.warning("Low contrast (\(label)): \(name) = \(String(format: "%.2f", r)):1 (< AA 4.5)")
             }
         }
     }

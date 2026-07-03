@@ -26,7 +26,7 @@ It is designed to stay reliable on large corpora (tested against vaults in the h
 - **Traceable answers.** Every answer shows the exact sources that grounded it — click a source to open the file in its default app, or browse **Sources in this chat** in the Context inspector to revisit everything the whole conversation drew on.
 - **Integrated model management.** A built-in Model Zoo discovers installed models, and an Ollama control panel drives the Ollama CLI (start/stop server, pull, load, unload) directly from the app, with a copyable command cheatsheet.
 - **Built-in diagnostics.** A filterable log console, per-file indexing issues, and one-click export make it easy to see exactly what happened.
-- **Guided onboarding and deep theming.** A live five-step setup flow, plus light/dark/system themes, accent colors, adjustable glass transparency, high-contrast mode, and custom presets. Text size follows your macOS system setting.
+- **Guided onboarding and deep theming.** A live five-step setup flow, plus light/dark/system themes, accent colors, glass-transparency presets, high-contrast mode, and custom presets. Switching Light/Dark recolors the whole window instantly and in place (no lost scroll position). Text size follows your macOS system setting.
 
 ---
 

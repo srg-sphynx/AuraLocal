@@ -49,17 +49,45 @@ struct AppearanceSettingsView: View {
             }
 
             LabeledField(label: "Transparency") {
-                HStack(spacing: 12) {
-                    Image(systemName: "square.fill").foregroundStyle(Theme.Palette.outline)
-                    Slider(value: theme.glassTransparency, in: 0...1, step: 0.05).tint(Theme.Palette.primaryVivid)
-                    Image(systemName: "square.dotted").foregroundStyle(Theme.Palette.outline)
-                    Text(String(format: "%.0f%%", settingsStore.settings.theme.glassTransparency * 100))
-                        .font(Theme.Font.bodySm().monospacedDigit()).foregroundStyle(Theme.Palette.primary)
-                        .frame(width: 44, alignment: .trailing)
-                }
+                transparencyPresetPicker
             }
             Text("How much of the desktop shows through the app's glass panels. Text size follows your macOS system setting automatically.")
                 .font(Theme.Font.micro()).foregroundStyle(Theme.Palette.outline)
+        }
+    }
+
+    // MARK: Transparency (discrete presets — no dragging, so no live re-tint churn)
+
+    /// Fixed glass levels. A slider fired a change on every pixel of the drag; a few
+    /// labelled buttons give the same control in one deliberate tap.
+    private static let transparencyPresets: [(label: String, value: Double)] = [
+        ("Solid", 0.0), ("Subtle", 0.30), ("Medium", 0.55), ("Heavy", 0.85),
+    ]
+
+    private var transparencyPresetPicker: some View {
+        let current = settingsStore.settings.theme.glassTransparency
+        // Highlight whichever preset the stored value is closest to (so a legacy
+        // slider value still lights up exactly one button).
+        let activeValue = Self.transparencyPresets
+            .min { abs($0.value - current) < abs($1.value - current) }?.value
+        return HStack(spacing: 6) {
+            ForEach(Self.transparencyPresets, id: \.value) { preset in
+                let active = preset.value == activeValue
+                Button {
+                    settingsStore.settings.theme.glassTransparency = preset.value
+                } label: {
+                    Text(preset.label)
+                        .font(Theme.Font.bodySm().weight(.medium))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                        .background(RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
+                            .fill(active ? Theme.Palette.primaryVivid : Theme.Palette.cardFill))
+                        .foregroundStyle(active ? Color.white : Theme.Palette.onSurfaceVariant)
+                        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
+                            .strokeBorder(Theme.glassBorderSoft, lineWidth: 0.5))
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 
