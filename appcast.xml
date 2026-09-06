@@ -3,6 +3,15 @@
     <channel>
         <title>Aura Local</title>
         <item>
+            <title>4.0.2</title>
+            <pubDate>Sun, 06 Sep 2026 12:09:54 +0200</pubDate>
+            <sparkle:version>4.0.2</sparkle:version>
+            <sparkle:shortVersionString>4.0.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <enclosure url="https://github.com/srg-sphynx/AuraLocal/releases/download/v4.0.2/AuraLocal-v4.0.2.dmg" length="6027273" type="application/octet-stream" sparkle:edSignature="v+5h8bJ+tfEI2xz13/yN6umrym13Gk4nm9Q5AQKqcnhfapHPnuuVHLxj5ZZJuxy0zoBWPX5uU70lVkaouaFCCw=="/>
+        </item>
+        <item>
             <title>4.0.1</title>
             <pubDate>Fri, 03 Jul 2026 15:02:52 +0530</pubDate>
             <sparkle:version>4.0.1</sparkle:version>
@@ -19,15 +28,6 @@
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <enclosure url="https://github.com/srg-sphynx/AuraLocal/releases/download/v4.0.0/AuraLocal-v4.0.0.dmg" length="6017233" type="application/octet-stream" sparkle:edSignature="AjzOfY8qYIlmZ7ulcPFU/x4ktUfugV3kxiN/L+D3GsbEPPrlpph2XDZusrxEBYYzjtampn9lg/nbJlblJuRlCw=="/>
-        </item>
-        <item>
-            <title>3.3.3</title>
-            <pubDate>Fri, 03 Jul 2026 13:38:00 +0530</pubDate>
-            <sparkle:version>3.3.3</sparkle:version>
-            <sparkle:shortVersionString>3.3.3</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://github.com/srg-sphynx/AuraLocal/releases/download/v3.3.3/AuraLocal-v3.3.3.dmg" length="5991424" type="application/octet-stream" sparkle:edSignature="ugSHvUuu1EGrEeeQE8X43yRZ+PDuA+/bUNQyHynSKUrs68STpRKTqjXbbAhiuRMkM6xfhf4OwwikYv8AEBlMAA=="/>
         </item>
     </channel>
 </rss>
