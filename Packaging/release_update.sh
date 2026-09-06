@@ -2,11 +2,12 @@
 # One-command release: build the DMG, attach it to a GitHub Release, sign it into
 # the Sparkle appcast, and publish the appcast to the gh-pages branch.
 #
-# Prereqs (already set up once):
-#   • EdDSA private key in the Keychain (Sparkle `generate_keys`), public key in
-#     Packaging/Info.plist as SUPublicEDKey.
-#   • `gh` authenticated for the srg-sphynx/AuraLocal repo.
-#   • GitHub Pages serving the gh-pages branch root (feed = SUFeedURL).
+# Prereqs (set up once):
+#   • Packaging/release.env — the channel identity (feed URL, Sparkle public key,
+#     target repo, commit identity). Gitignored; see release.env.example.
+#   • EdDSA private key in your login Keychain (Sparkle `generate_keys`).
+#   • `gh` authenticated for the repo named by RELEASE_REPO.
+#   • GitHub Pages serving the gh-pages branch root (feed = SU_FEED_URL).
 #
 # Usage: bump CFBundleShortVersionString/CFBundleVersion in Packaging/Info.plist
 #        first, then run:  bash Packaging/release_update.sh
@@ -14,7 +15,19 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PKG="$ROOT/Packaging"
-REPO="srg-sphynx/AuraLocal"
+
+# The publishing target is deliberately NOT in source control — a clone of this
+# repository must not be able to push to the official release channel.
+[ -f "$PKG/release.env" ] || {
+  echo "✗ Packaging/release.env not found."
+  echo "  cp Packaging/release.env.example Packaging/release.env and fill it in."
+  exit 1
+}
+set -a; . "$PKG/release.env"; set +a
+: "${RELEASE_REPO:?set RELEASE_REPO in Packaging/release.env}"
+: "${SU_FEED_URL:?set SU_FEED_URL in Packaging/release.env}"
+
+REPO="$RELEASE_REPO"
 BUILDS_DIR="$ROOT/../Builds"
 BIN="$ROOT/.build/artifacts/sparkle/Sparkle/bin"
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PKG/Info.plist")"
@@ -58,7 +71,7 @@ STAGE="$(mktemp -d)"
 cp "$DMG" "$STAGE/"
 # Reuse an existing appcast so older items are preserved (Sparkle keeps the whole
 # version history in one feed). Pull the current one down if present.
-curl -fsSL "https://srg-sphynx.github.io/AuraLocal/appcast.xml" -o "$STAGE/appcast.xml" 2>/dev/null || true
+curl -fsSL "$SU_FEED_URL" -o "$STAGE/appcast.xml" 2>/dev/null || true
 "$BIN/generate_appcast" --download-url-prefix "$DL_PREFIX" "$STAGE"
 
 echo "▸ Pushing appcast to gh-pages…"
@@ -66,10 +79,11 @@ WORK="$(mktemp -d)"
 git clone --quiet --branch gh-pages "https://github.com/$REPO.git" "$WORK"
 cp "$STAGE/appcast.xml" "$WORK/appcast.xml"
 git -C "$WORK" add appcast.xml
-git -C "$WORK" -c user.name="srg-sphynx" -c user.email="saketa369@gmail.com" \
+git -C "$WORK" -c user.name="${RELEASE_GIT_NAME:-release-bot}" \
+              -c user.email="${RELEASE_GIT_EMAIL:-release-bot@users.noreply.github.com}" \
     commit -q -m "Publish appcast for $VERSION" || { echo "  (no appcast change)"; }
 git -C "$WORK" push --quiet origin gh-pages
 rm -rf "$STAGE" "$WORK"
 
-echo "▸ Done. Feed: https://srg-sphynx.github.io/AuraLocal/appcast.xml"
+echo "▸ Done. Feed: $SU_FEED_URL"
 echo "  Installed copies pick up $VERSION on their next check (Pages may take ~1 min)."

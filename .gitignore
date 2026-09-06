@@ -4,6 +4,20 @@
 Packaging/*.icns
 DerivedData/
 
+# Release channel identity — appcast URL, Sparkle public key, publishing target.
+# Never commit: a clone must not be able to build against the official feed.
+# Packaging/release.env.example is the tracked template.
+Packaging/release.env
+
+# Signing key material — must never enter source control under any name.
+*.pem
+*.p12
+*.p8
+*.key
+*.cer
+*.mobileprovision
+sparkle_private_key*
+
 # Distributables (published via GitHub Releases, not source control)
 *.dmg
 *.app/

@@ -36,6 +36,28 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Framewor
 cp "$BUILD_DIR/$EXEC_NAME" "$APP/Contents/MacOS/$EXEC_NAME"
 cp "$PKG/Info.plist" "$APP/Contents/Info.plist"
 cp "$ICON_WORK/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
+
+# Inject the update-channel identity from the untracked Packaging/release.env.
+# The tracked Info.plist carries only placeholders, so a clone of this repository
+# can never produce a build that polls — or impersonates — the official appcast.
+PLIST="$APP/Contents/Info.plist"
+if [ -f "$PKG/release.env" ]; then
+  set -a; . "$PKG/release.env"; set +a
+fi
+if [ -n "${SU_FEED_URL:-}" ] && [ -n "${SU_PUBLIC_ED_KEY:-}" ] &&
+   [ "${SU_PUBLIC_ED_KEY}" != "REPLACE_WITH_YOUR_SPARKLE_ED25519_PUBLIC_KEY" ]; then
+  /usr/libexec/PlistBuddy -c "Set :SUFeedURL $SU_FEED_URL"           "$PLIST"
+  /usr/libexec/PlistBuddy -c "Set :SUPublicEDKey $SU_PUBLIC_ED_KEY"  "$PLIST"
+  /usr/libexec/PlistBuddy -c "Set :SUEnableAutomaticChecks true"     "$PLIST"
+  echo "  ✓ update channel configured → $SU_FEED_URL"
+else
+  # Unconfigured build: remove the placeholders entirely rather than shipping a
+  # bogus feed URL, and leave automatic checks off.
+  /usr/libexec/PlistBuddy -c "Delete :SUFeedURL"      "$PLIST" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Delete :SUPublicEDKey"  "$PLIST" 2>/dev/null || true
+  echo "  ⚠︎ no Packaging/release.env — auto-update disabled in this build."
+  echo "     (copy Packaging/release.env.example to set up your own feed)"
+fi
 # Bundle the changelog so the in-app "What's New" can read it (AppInfo.changelogMarkdown).
 # CHANGELOG.md is the single source of truth — also shown on GitHub Releases.
 cp "$ROOT/CHANGELOG.md" "$APP/Contents/Resources/CHANGELOG.md"

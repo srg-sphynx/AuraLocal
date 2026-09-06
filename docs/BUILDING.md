@@ -1,5 +1,10 @@
 # Building from source
 
+> **Licence note.** Aura Local is source-available, not open source. You may
+> build it for your own personal, non-commercial evaluation. You may not
+> redistribute the source or any binary you produce from it, publish a fork, or
+> ship a derivative. See [LICENSE](../LICENSE).
+
 ## Prerequisites
 
 - macOS 14 (Sonoma) or later
@@ -49,11 +54,28 @@ The script reads the version from `Packaging/Info.plist` (`CFBundleShortVersionS
 
 ```
 Packaging/
-├─ Info.plist              App metadata and version
+├─ Info.plist              App metadata and version (update keys are placeholders)
 ├─ AuraLocal.entitlements  Entitlements (non-sandboxed)
 ├─ build_app.sh            Build → sign → DMG pipeline
+├─ release_update.sh       Release → sign appcast → publish (maintainer only)
+├─ release.env.example     Template for the update-channel config
+├─ release.env             Your real channel config — GITIGNORED, never commit
 └─ generate_icon.swift     Programmatic app-icon generation
 ```
+
+### Update-channel configuration
+
+The Sparkle feed URL and public key are **not** in source control. `build_app.sh`
+injects them from `Packaging/release.env` at bundle time; without that file it
+strips the update keys and disables automatic checks, so a build from a plain
+clone never polls the official feed. To point a build at your own feed:
+
+```bash
+cp Packaging/release.env.example Packaging/release.env
+# then fill in SU_FEED_URL, SU_PUBLIC_ED_KEY, RELEASE_REPO
+```
+
+Details in [`UPDATES.md`](UPDATES.md).
 
 ## Signing and notarization
 

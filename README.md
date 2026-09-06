@@ -10,6 +10,15 @@
   <em>macOS 14+ &nbsp;·&nbsp; Swift / SwiftUI &nbsp;·&nbsp; 100% on-device retrieval and inference</em>
 </p>
 
+<p align="center">
+  <strong>Source-available · © 2026 srg-sphynx · All rights reserved · <a href="LICENSE">Not open source</a></strong>
+</p>
+
+> [!IMPORTANT]
+> The source is public so you can **audit** it — not copy it. You may read it and
+> build it for personal evaluation. You may **not** redistribute it, publish a
+> fork, or ship a derivative or commercial product. See [LICENSE](LICENSE).
+
 ---
 
 ## Overview
@@ -105,6 +114,9 @@ Download the latest `.dmg` from the [Releases](https://github.com/srg-sphynx/Aur
 
 ### From source
 
+> Building from source is permitted for **personal, non-commercial evaluation
+> only**, and does not grant any right to redistribute the result. See [LICENSE](LICENSE).
+
 ```bash
 git clone https://github.com/srg-sphynx/AuraLocal.git
 cd AuraLocal
@@ -169,7 +181,7 @@ For the full technical design — the extractor set, schema, ANN/IVF index, retr
 We would rather be upfront about the rough edges. If you hit any of these — or anything else — please [open an issue](https://github.com/srg-sphynx/AuraLocal/issues).
 
 - **Unsigned / non-notarized builds.** Current releases are ad-hoc signed. macOS Gatekeeper will warn on first launch; use right-click → **Open** or approve the app in Privacy & Security. Notarized builds are planned.
-- **Auto-updates require a configured feed.** In-app updates ship via Sparkle, but the maintainer must set a real `SUPublicEDKey` and publish an appcast before they work — see [docs/UPDATES.md](docs/UPDATES.md). Until then, download new versions manually from Releases.
+- **Auto-updates only work in official builds.** The update feed and its signing key are not stored in this repository — they are injected at package time from an untracked `Packaging/release.env` (see [docs/UPDATES.md](docs/UPDATES.md)). A build made from a plain clone ships with auto-update disabled by design; download new versions from Releases instead.
 - **Large first-index passes are heavy.** The initial embedding pass on very large vaults (hundreds of thousands of chunks) is a substantial one-time job. It is resumable and runs off the main thread, but it takes time and works your embedding provider hard.
 - **Approximate-nearest-neighbor index is opt-in.** The IVF ANN index is disabled by default; exact semantic scan is the verified, default path. Enable ANN only for very large collections, and expect a build step after indexing.
 - **Extractors are not yet covered by automated tests.** The multi-format extractors compile and run in the app, but there is no standalone test suite for them yet, so unusual documents may extract imperfectly. Expanding test coverage is on the roadmap.
@@ -181,8 +193,30 @@ We would rather be upfront about the rough edges. If you hit any of these — or
 
 Issues and pull requests are welcome. For bugs, please include your macOS version, the Aura Local version, your provider/model setup, and any relevant output from the Diagnostics view (which supports one-click export).
 
+By submitting a pull request you agree that your contribution may be used,
+modified, relicensed, and commercially exploited by the project owner, as set
+out in section 4 of the [LICENSE](LICENSE). You keep the copyright in your own
+work — you are granting rights, not signing them away.
+
 ---
 
 ## License
 
-Released under the [MIT License](LICENSE).
+**Aura Local is source-available, not open source.**
+Copyright © 2026 srg-sphynx. All rights reserved.
+
+The source is published so you can read it, audit it, and verify the privacy
+claims above — not so it can be copied. See [LICENSE](LICENSE) for the full terms.
+
+| | |
+| --- | --- |
+| ✅ **You may** | Read and study the source · build and run it locally for your own personal, non-commercial evaluation · open issues and pull requests |
+| ❌ **You may not** | Redistribute the source or binaries · publish a fork · ship a derivative or rebranded app · use it commercially · use the "Aura Local" name or icon |
+
+Cloning this repository and publishing your own build of this application —
+free or paid — is expressly prohibited.
+
+Bundled third-party components (SwiftSoup, ZIPFoundation, Sparkle) remain under
+their own MIT licenses and are unaffected by the above.
+
+For commercial or redistribution licensing, [open an issue](https://github.com/srg-sphynx/AuraLocal/issues).

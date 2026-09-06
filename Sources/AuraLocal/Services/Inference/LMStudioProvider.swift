@@ -1,3 +1,12 @@
+//
+//  Aura Local — local-first RAG chat for macOS
+//  Copyright (c) 2026 srg-sphynx. All rights reserved.
+//
+//  Source-available, NOT open source. Personal, non-commercial evaluation only.
+//  Redistribution, forks, derivative works, and commercial use are prohibited
+//  without express written permission. See LICENSE at the project root.
+//
+
 import Foundation
 
 /// Connector for LM Studio's OpenAI-compatible server (default http://localhost:1234).

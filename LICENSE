@@ -1,21 +1,124 @@
-MIT License
+Aura Local — Proprietary Software License
+Copyright (c) 2026 srg-sphynx. All rights reserved.
 
-Copyright (c) 2026 srg-sphynx
+===============================================================================
+NOTICE: THIS IS NOT OPEN SOURCE SOFTWARE.
+===============================================================================
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+The source code of Aura Local (the "Software") is published publicly for
+transparency, security review, and evaluation. Publication does NOT place the
+Software in the public domain and does NOT grant any open-source license.
+All rights not expressly granted below are reserved by the copyright holder
+(the "Licensor").
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+
+1. GRANT OF LIMITED RIGHTS
+
+Subject to your full compliance with this License, the Licensor grants you a
+personal, non-exclusive, non-transferable, non-sublicensable, revocable
+permission to:
+
+  (a) view, read, and study the source code;
+  (b) compile and run the Software on hardware you own or control, solely for
+      your own personal, internal, non-commercial evaluation and use; and
+  (c) create private, local modifications for the sole purpose of (b).
+
+That is the entire grant. No other rights are given, by implication, estoppel,
+or otherwise.
+
+
+2. RESTRICTIONS
+
+Except with the Licensor's prior express written permission, you may NOT:
+
+  (a) redistribute, publish, share, host, mirror, or otherwise make available
+      the Software or its source code, in whole or in part, in original or
+      modified form, whether or not for a fee;
+  (b) distribute compiled binaries, application bundles, disk images, or
+      installers built from the Software;
+  (c) publish a fork, or create, distribute, or offer any derivative work,
+      adaptation, port, or rebranded version of the Software;
+  (d) use the Software, or any part of it, in or as part of any product,
+      service, or offering that is sold, licensed, monetized, or otherwise
+      provided to third parties;
+  (e) use the Software for any commercial purpose, including internal use in
+      the operation of a business;
+  (f) sublicense, rent, lease, lend, or transfer the Software or any rights
+      under this License;
+  (g) remove, obscure, or alter any copyright, trademark, attribution, or
+      license notice contained in the Software; or
+  (h) use the Software's source code as training data, or as a reference for
+      producing a substantially similar competing application.
+
+For the avoidance of doubt: cloning this repository and building, publishing,
+or distributing your own version of this application — free or paid — is
+expressly prohibited.
+
+
+3. THIRD-PARTY COMPONENTS
+
+The Software incorporates third-party open-source components, each governed by
+its own license, which continues to apply to that component and is unaffected
+by this License:
+
+  • SwiftSoup      — MIT License — https://github.com/scinfu/SwiftSoup
+  • ZIPFoundation  — MIT License — https://github.com/weichsel/ZIPFoundation
+  • Sparkle        — MIT License — https://github.com/sparkle-project/Sparkle
+
+Nothing in this License restricts your rights in those components under their
+respective licenses. This License applies only to the original code authored by
+the Licensor.
+
+
+4. CONTRIBUTIONS
+
+Issues and pull requests are welcome, but they are not a transfer of control.
+By submitting any contribution (code, documentation, or other material) to this
+project, you grant the Licensor a perpetual, worldwide, irrevocable,
+royalty-free, sublicensable right to use, reproduce, modify, relicense, and
+commercially exploit that contribution without restriction or obligation to
+you, and you represent that you have the right to grant it. You retain your own
+copyright in your contribution; you are granting rights, not surrendering them.
+
+
+5. TRADEMARKS
+
+"Aura Local", the Aura Local name, logo, and app icon are trademarks of the
+Licensor. This License grants no trademark rights. You may not use these marks
+to identify, brand, or promote any product or service.
+
+
+6. TERMINATION
+
+This License terminates automatically and immediately, without notice, if you
+breach any of its terms. On termination you must cease all use of the Software
+and destroy all copies in your possession. Sections 3 through 9 survive
+termination.
+
+
+7. NO WARRANTY
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+
+8. LIMITATION OF LIABILITY
+
+IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM,
+OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+
+9. RESERVATION OF RIGHTS
+
+All rights not expressly granted in Section 1 are reserved by the Licensor.
+The Licensor may release future versions under different terms, and may grant
+commercial or redistribution licenses on request.
+
+
+-------------------------------------------------------------------------------
+Licensing enquiries, commercial use, and redistribution requests:
+open an issue at https://github.com/srg-sphynx/AuraLocal/issues
+-------------------------------------------------------------------------------

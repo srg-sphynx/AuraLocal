@@ -17,9 +17,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>4.0.1</string>
+	<string>4.0.2</string>
 	<key>CFBundleVersion</key>
-	<string>4.0.1</string>
+	<string>4.0.2</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.developer-tools</string>
 	<key>LSMinimumSystemVersion</key>
@@ -38,12 +38,17 @@
 	<true/>
 	<key>SUAutomaticallyUpdate</key>
 	<false/>
+	<!-- Update-channel identity is NOT stored in source control. `build_app.sh`
+	     injects the real SUFeedURL / SUPublicEDKey from the untracked
+	     Packaging/release.env at bundle time (see Packaging/release.env.example).
+	     A build without that file ships with the placeholders stripped and
+	     automatic checks off, so it never polls another party's feed. -->
 	<key>SUEnableAutomaticChecks</key>
-	<true/>
+	<false/>
 	<key>SUFeedURL</key>
-	<string>https://srg-sphynx.github.io/AuraLocal/appcast.xml</string>
+	<string>__SU_FEED_URL__</string>
 	<key>SUPublicEDKey</key>
-	<string>Ss7+OduyDAmX5d6ShXvV1kHGGy1iWSMQLxwms1SOGD8=</string>
+	<string>__SU_PUBLIC_ED_KEY__</string>
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
 </dict>

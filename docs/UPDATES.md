@@ -10,24 +10,46 @@ card in Settings.
 This document is the operator's guide: how it's wired, the one-time setup, and
 the per-release publishing steps.
 
-## Live configuration (already set up)
+## Where the channel identity lives
 
-The channel is provisioned — you don't need to redo the one-time setup:
+> **The update channel is not described in this repository.** The appcast URL,
+> the Sparkle public key, and the publishing target are read at build time from
+> **`Packaging/release.env`**, which is gitignored. The tracked `Info.plist`
+> carries only `__SU_FEED_URL__` / `__SU_PUBLIC_ED_KEY__` placeholders.
+>
+> This is deliberate: a clone of this repository must not be able to build an
+> app that polls the official feed, nor publish to it. See
+> [`Packaging/release.env.example`](../Packaging/release.env.example).
 
-- **Signing key:** an EdDSA keypair exists; the private key is in the `srg-sphynx`
-  login **Keychain**, and the matching public key is in `Info.plist`
-  (`SUPublicEDKey = Ss7+OduyDAmX5d6ShXvV1kHGGy1iWSMQLxwms1SOGD8=`).
-  **Back the private key up** (`generate_keys -x sparkle_private_key.pem`) and keep
-  it safe — losing it means no future update can be signed.
-- **Feed:** `SUFeedURL = https://srg-sphynx.github.io/AuraLocal/appcast.xml`, served
-  from the repo's **`gh-pages`** branch (which holds only `appcast.xml`, a tiny
-  `index.html`, and `.nojekyll`).
-- **Binaries:** each version's `.dmg` is attached to a **GitHub Release** (tag
-  `vX.Y.Z`); the appcast's `<enclosure url>` points at that release asset.
+Set it up once:
+
+```bash
+cp Packaging/release.env.example Packaging/release.env
+$EDITOR Packaging/release.env      # fill in SU_FEED_URL, SU_PUBLIC_ED_KEY, RELEASE_REPO
+```
+
+| Variable | Meaning |
+| --- | --- |
+| `SU_FEED_URL` | Appcast URL the shipped app polls (`Info.plist` → `SUFeedURL`) |
+| `SU_PUBLIC_ED_KEY` | Base64 EdDSA **public** key (`Info.plist` → `SUPublicEDKey`) |
+| `RELEASE_REPO` | `owner/repo` receiving the GitHub Release + gh-pages appcast |
+| `RELEASE_GIT_NAME` / `RELEASE_GIT_EMAIL` | Commit identity for the automated appcast commit |
+
+`build_app.sh` injects these into the bundle's `Info.plist`. **Build without
+`release.env` and the feed keys are stripped and automatic checks stay off** —
+the app still runs, it just never looks for updates.
+
+The **private** key never appears in this file or the repository: it lives in
+your login **Keychain**. Back it up (`generate_keys -x sparkle_private_key.pem`,
+stored somewhere encrypted — `*.pem` is gitignored). Lose it and no future
+update can ever be signed for already-installed copies.
+
+**Binaries:** each version's `.dmg` is attached to a **GitHub Release** (tag
+`vX.Y.Z`); the appcast's `<enclosure url>` points at that release asset.
 
 So a release is: build DMG → attach to a Release → sign into `appcast.xml` → push
-`gh-pages`. The [`Packaging/release_update.sh`](../Packaging/release_update.sh)
-note at the end automates most of it.
+`gh-pages`. [`Packaging/release_update.sh`](../Packaging/release_update.sh)
+automates all of it.
 
 ---
 
@@ -38,19 +60,24 @@ note at the end automates most of it.
 | Sparkle dependency | `Package.swift` (SPM: `sparkle-project/Sparkle`) |
 | Runtime wrapper | [`Sources/AuraLocal/Services/Updates/UpdaterService.swift`](../Sources/AuraLocal/Services/Updates/UpdaterService.swift) |
 | Menu + Settings UI | `AuraApp.swift` (Check for Updates…), `SettingsView.swift` (Software Updates card) |
-| Feed URL & public key | `Packaging/Info.plist` → `SUFeedURL`, `SUPublicEDKey` |
+| Feed URL & public key | `Packaging/release.env` (untracked) → injected by `build_app.sh` |
 | Framework bundling & signing | `Packaging/build_app.sh` |
 | Library-validation entitlement | `Packaging/AuraLocal.entitlements` |
 
-The relevant `Info.plist` keys:
+The relevant `Info.plist` keys, **as tracked in git** (placeholders):
 
 ```xml
-<key>SUFeedURL</key>       <string>https://srg-sphynx.github.io/AuraLocal/appcast.xml</string>
-<key>SUPublicEDKey</key>   <string>REPLACE_WITH_YOUR_SPARKLE_ED25519_PUBLIC_KEY</string>
-<key>SUEnableAutomaticChecks</key>       <true/>
-<key>SUScheduledCheckInterval</key>      <integer>86400</integer>  <!-- daily -->
+<key>SUFeedURL</key>       <string>__SU_FEED_URL__</string>
+<key>SUPublicEDKey</key>   <string>__SU_PUBLIC_ED_KEY__</string>
+<key>SUEnableAutomaticChecks</key>       <false/>                   <!-- enabled at build time -->
+<key>SUScheduledCheckInterval</key>      <integer>86400</integer>   <!-- daily -->
 <key>SUAutomaticallyUpdate</key>         <false/>                   <!-- ask before installing -->
 ```
+
+At bundle time `build_app.sh` replaces the two placeholders with the values from
+`release.env` and flips `SUEnableAutomaticChecks` to `true`. If `release.env` is
+absent it deletes both keys instead, so an unconfigured build never ships a
+dangling feed URL.
 
 Sparkle's command-line tools ship inside the resolved SPM artifact:
 
@@ -77,25 +104,27 @@ swift build                                   # ensures the tools are downloaded
 ```
 
 This stores the **private key in your login Keychain** (never commit it) and
-prints the **public key**. Copy the public key into `Packaging/Info.plist`:
+prints the **public key**. Put the public key in `Packaging/release.env` — *not*
+in `Info.plist`, which is tracked:
 
-```xml
-<key>SUPublicEDKey</key>
-<string>«the base64 public key printed by generate_keys»</string>
+```bash
+SU_PUBLIC_ED_KEY="«the base64 public key printed by generate_keys»"
 ```
 
 > Back up the private key somewhere safe:
-> `generate_keys -x sparkle_private_key.pem` exports it. If you lose it you can
-> never sign a compatible update again and every user has to reinstall manually.
+> `generate_keys -x sparkle_private_key.pem` exports it. Store that export in a
+> password manager or encrypted volume, never in the repo (`*.pem` is
+> gitignored). If you lose it you can never sign a compatible update again and
+> every user has to reinstall manually.
 
 ### 2. Pick where the appcast + archives live
 
-`SUFeedURL` is already set to a GitHub Pages URL:
-`https://srg-sphynx.github.io/AuraLocal/appcast.xml`. The simplest, most robust
-layout is to host **both** `appcast.xml` and the `.dmg` files in the **same**
-directory so every download URL shares one prefix. Any static host works
-(GitHub Pages, S3, Cloudflare R2, a plain web server). If you change the URL,
-update `SUFeedURL` and ship a build with the new value before switching hosts.
+Set `SU_FEED_URL` in `Packaging/release.env`. The simplest, most robust layout
+is to host **both** `appcast.xml` and the `.dmg` files in the **same** directory
+so every download URL shares one prefix. Any static host works (GitHub Pages,
+S3, Cloudflare R2, a plain web server). If you change the URL, update
+`SU_FEED_URL` and ship a build with the new value **before** switching hosts —
+installed copies only learn the new feed by updating to a build that carries it.
 
 Enable GitHub Pages for this repo (Settings → Pages) serving from either the
 `gh-pages` branch or the `/docs` folder of `main`. The examples below assume a
@@ -146,8 +175,9 @@ BIN=.build/artifacts/sparkle/Sparkle/bin
 mkdir -p updates
 cp "Builds/AuraLocal-v3.2.0.dmg" updates/
 
+source Packaging/release.env          # brings in SU_FEED_URL / RELEASE_REPO
 "$BIN/generate_appcast" \
-  --download-url-prefix "https://srg-sphynx.github.io/AuraLocal/updates/" \
+  --download-url-prefix "$(dirname "$SU_FEED_URL")/updates/" \
   updates/
 # → writes updates/appcast.xml with an <item> for every DMG in updates/
 ```

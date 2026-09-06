@@ -4,6 +4,20 @@ All notable changes to Aura Local are documented here. Version numbers follow th
 
 ## [Unreleased]
 
+## [4.0.2] — 2026-09-06
+
+A licensing and release-hardening update. **There are no functional changes** — indexing, retrieval, chat, theming, and every setting behave exactly as they did in 4.0.1. Your vaults, chats, and settings are untouched.
+
+### Changed
+- **Aura Local is now source-available under a proprietary license rather than MIT.** The app is still free to download and use, and the complete source stays public so you can read it and verify for yourself that nothing leaves your Mac. What changed is what *others* may do with that source: redistributing it, publishing a fork, shipping a derivative or rebranded app, and commercial use now require written permission. The bundled open-source components (SwiftSoup, ZIPFoundation, Sparkle) keep their own MIT licenses and are unaffected. See [LICENSE](LICENSE) for the full terms.
+- **Every source file now carries an explicit copyright notice.**
+
+### Security
+- **The auto-update channel is no longer described in public source.** The update feed address and its signing key used to be committed to the repository. They are now supplied at packaging time from a local configuration file that is never published, so a copy of Aura Local built from a clone of the repository ships with auto-update switched off and cannot poll — or impersonate — the official update feed. Update verification itself is unchanged: releases are still EdDSA-signed and checked before installation.
+
+### Notes
+- Aura Local remains free to use. This change supports developing it into a sustained, properly supported product rather than leaving it unlicensed for anyone to resell.
+
 ## [4.0.1] — 2026-07-03
 
 A storage-hygiene release: Aura now cleans up after itself and shows you exactly what it keeps on disk.
